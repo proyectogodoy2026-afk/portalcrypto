@@ -41,6 +41,21 @@ type CoinPriceResponse = Record<
   }
 >;
 
+function toDbPostType(type: "texto" | "link" | "analisis" | "noticia" | "alerta") {
+  if (type === "texto") return "text";
+  if (type === "analisis") return "analysis";
+  if (type === "noticia") return "news";
+  if (type === "alerta") return "alert";
+  return "link";
+}
+
+function toDbRisk(value: "bajo" | "medio" | "alto" | null) {
+  if (value === "bajo") return "low";
+  if (value === "medio") return "medium";
+  if (value === "alto") return "high";
+  return null;
+}
+
 export async function POST(req: Request) {
   const supabase = await createSupabaseRouteClient();
   const {
@@ -115,12 +130,12 @@ export async function POST(req: Request) {
           community_id: parsed.data.community_id,
           title: parsed.data.title,
           content: parsed.data.content ?? null,
-          type: parsed.data.type ?? "texto",
+          type: toDbPostType(parsed.data.type ?? "texto"),
           tag: parsed.data.tag ?? null,
           url: parsed.data.url ?? null,
           anchored_coin_id: anchoredCoinId,
           price_at_post: priceAtPost,
-          risk_indicator: parsed.data.risk_indicator ?? null,
+          risk_indicator: toDbRisk(parsed.data.risk_indicator ?? null),
           bullish_votes: 0,
           bearish_votes: 0,
           scam_reports: 0,
@@ -141,7 +156,7 @@ export async function POST(req: Request) {
           who_is_affected: parsed.data.who_is_affected ?? null,
           anchored_coin_id: null,
           price_at_post: null,
-          risk_indicator: parsed.data.risk_indicator,
+          risk_indicator: toDbRisk(parsed.data.risk_indicator),
           bullish_votes: 0,
           bearish_votes: 0,
           scam_reports: 0,
@@ -157,8 +172,12 @@ export async function POST(req: Request) {
     .single();
 
   if (error || !inserted?.id) {
+    const details =
+      typeof (error as unknown as { message?: unknown })?.message === "string"
+        ? (error as unknown as { message: string }).message
+        : null;
     return Response.json(
-      { message: "No pudimos crear el post. Intentá de nuevo." },
+      { message: `No pudimos crear el post. ${details ?? "Intentá de nuevo."}`.trim() },
       { status: 500 },
     );
   }
