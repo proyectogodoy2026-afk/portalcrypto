@@ -96,7 +96,7 @@ export default async function PostPage({
   return (
     <div className="space-y-4">
       <PostCard post={enhanced as unknown as FeedPost} />
-      <CommentsSection comments={(comments ?? []) as unknown as CommentRow[]} />
+      <CommentsSection postId={id} comments={(comments ?? []) as unknown as CommentRow[]} />
     </div>
   );
 }

@@ -1,9 +1,13 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 
 import ScamReportButton from "@/components/scam/ScamReportButton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/components/auth/AuthProvider";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 type CommentRow = {
   id: string;
@@ -35,8 +39,27 @@ function timeAgoAt(value: string | null, nowMs: number | null) {
   return `Hace ${days} d`;
 }
 
-export default function CommentsSection({ comments }: { comments: CommentRow[] }) {
+export default function CommentsSection({
+  postId,
+  comments,
+}: {
+  postId: string;
+  comments: CommentRow[];
+}) {
+  const router = useRouter();
+  const supabase = React.useMemo(() => createSupabaseBrowserClient(), []);
+  const { user, profile } = useAuth();
+
   const [nowMs, setNowMs] = React.useState<number | null>(null);
+  const [items, setItems] = React.useState<CommentRow[]>(comments);
+  const [content, setContent] = React.useState("");
+  const [submitting, setSubmitting] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    setItems(comments);
+  }, [comments]);
+
   React.useEffect(() => {
     const immediate = window.setTimeout(() => setNowMs(Date.now()), 0);
     const id = window.setInterval(() => setNowMs(Date.now()), 60_000);
@@ -46,17 +69,86 @@ export default function CommentsSection({ comments }: { comments: CommentRow[] }
     };
   }, []);
 
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+
+    const trimmed = content.trim();
+    if (!trimmed) return;
+    if (!user) {
+      setError("Necesitás iniciar sesión para comentar.");
+      return;
+    }
+
+    setSubmitting(true);
+
+    const optimistic: CommentRow = {
+      id: crypto.randomUUID(),
+      author_id: user.id,
+      content: trimmed,
+      created_at: new Date().toISOString(),
+      profiles: { username: profile?.username ?? null, avatar_url: profile?.avatar_url ?? null },
+    };
+    setItems((prev) => [...prev, optimistic]);
+    setContent("");
+
+    const { error: insertError } = await supabase.from("comments").insert({
+      post_id: postId,
+      author_id: user.id,
+      content: trimmed,
+      is_removed: false,
+      is_flagged: false,
+      upvotes: 0,
+      downvotes: 0,
+    } as never);
+
+    setSubmitting(false);
+
+    if (insertError) {
+      setItems((prev) => prev.filter((c) => c.id !== optimistic.id));
+      const msg = (insertError.message ?? "").toLowerCase();
+      if (msg.includes("row-level security") || msg.includes("permission denied")) {
+        setError("No pudimos guardar tu comentario por permisos (RLS) en la tabla comments.");
+      } else {
+        setError(`No pudimos guardar tu comentario: ${insertError.message}`);
+      }
+      return;
+    }
+
+    router.refresh();
+  }
+
   return (
     <div className="space-y-4">
       <div className="text-sm font-semibold text-zinc-900">Comentarios</div>
 
-      {comments.length === 0 ? (
+      <form onSubmit={onSubmit} className="rounded-lg border border-zinc-200 bg-white p-4">
+        <textarea
+          className="min-h-24 w-full resize-y rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900"
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          placeholder={user ? "Escribí tu comentario..." : "Iniciá sesión para comentar."}
+          disabled={!user || submitting}
+        />
+        <div className="mt-3 flex items-center justify-end">
+          <Button type="submit" disabled={!user || submitting || !content.trim()}>
+            {submitting ? "Publicando..." : "Comentar"}
+          </Button>
+        </div>
+        {error ? (
+          <div className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {error}
+          </div>
+        ) : null}
+      </form>
+
+      {items.length === 0 ? (
         <div className="rounded-lg border border-zinc-200 bg-white p-6 text-sm text-zinc-600">
           Todavía no hay comentarios.
         </div>
       ) : (
         <div className="space-y-3">
-          {comments.map((c) => (
+          {items.map((c) => (
             <div key={c.id} className="rounded-lg border border-zinc-200 bg-white p-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-2">

@@ -12,12 +12,13 @@ export default function MainLayout({
   return (
     <AuthProvider>
       <div className="min-h-screen bg-zinc-50">
-        <div className="flex min-h-screen">
-          <Sidebar />
-          <div className="flex min-w-0 flex-1 flex-col">
-            <Header />
-            <main className="flex-1 p-6">{children}</main>
-          </div>
+        <Header />
+        <div className="mx-auto flex w-full max-w-6xl gap-6 px-4 py-6">
+          <Sidebar variant="left" />
+          <main className="min-w-0 flex-1">
+            <div className="mx-auto w-full max-w-3xl">{children}</div>
+          </main>
+          <Sidebar variant="right" />
         </div>
       </div>
     </AuthProvider>

@@ -38,6 +38,7 @@ export async function castVote(
     return { ok: false, message: "Necesitás iniciar sesión para votar." };
   }
 
+  let postAuthorId: string | null = null;
   if (parsedTarget.data === "post") {
     const { data: post } = await supabase
       .from("posts")
@@ -54,6 +55,7 @@ export async function castVote(
     if (typedPost.author_id === user.id) {
       return { ok: false, message: "No podés votar tu propio post." };
     }
+    postAuthorId = typedPost.author_id ?? null;
   } else {
     const { data: comment } = await supabase
       .from("comments")
@@ -103,7 +105,19 @@ export async function castVote(
       target_id: parsedTargetId.data,
       vote_type: parsedVote.data,
     });
-    if (error) return { ok: false, message: "No pudimos guardar tu voto." };
+    if (error) {
+      const msg = (error.message ?? "").toLowerCase();
+      if (msg.includes("row-level security") || msg.includes("permission denied")) {
+        return { ok: false, message: "No pudimos guardar tu voto por permisos (RLS) en la tabla votes." };
+      }
+      if (msg.includes("violates foreign key") || msg.includes("foreign key")) {
+        return { ok: false, message: "No pudimos guardar tu voto: falta tu perfil en la tabla profiles." };
+      }
+      if (msg.includes("violates check constraint") || msg.includes("check constraint")) {
+        return { ok: false, message: `No pudimos guardar tu voto: ${error.message}` };
+      }
+      return { ok: false, message: `No pudimos guardar tu voto: ${error.message}` };
+    }
     nextVote = parsedVote.data;
   }
 
@@ -135,28 +149,10 @@ export async function castVote(
   };
 
   if (parsedTarget.data === "post") {
-    const { data: post } = await supabase
-      .from("posts")
-      .select("author_id")
-      .eq("id", parsedTargetId.data)
-      .maybeSingle();
-
-    const updatePayload: Record<string, unknown> = {
-      bullish_votes: counts.bullish,
-      bearish_votes: counts.bearish,
-    };
-
-    const { error } = await supabase
-      .from("posts")
-      .update(updatePayload as never)
-      .eq("id", parsedTargetId.data);
-    if (error) return { ok: false, message: "No pudimos actualizar el post." };
-
     const totalVotes = counts.bullish + counts.bearish;
-    const authorId = (post as unknown as { author_id?: string } | null)?.author_id ?? null;
-    if (totalVotes === 10 && authorId) {
+    if (totalVotes === 10 && postAuthorId) {
       await createNotification({
-        userId: authorId,
+        userId: postAuthorId,
         type: "vote_milestone",
         title: "Tu post llegó a 10 votos",
         body: "La comunidad está interactuando fuerte con tu publicación.",

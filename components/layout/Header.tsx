@@ -5,8 +5,8 @@ import NotificationBell from "@/components/notifications/NotificationBell";
 
 export default function Header() {
   return (
-    <header className="flex h-14 items-center justify-between border-b border-zinc-200 bg-white px-4">
-      <Link href="/" className="text-sm font-semibold text-zinc-900">
+    <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-zinc-200 bg-white/80 px-4 backdrop-blur">
+      <Link href="/" className="text-sm font-semibold tracking-tight text-zinc-900">
         PortalCrypto
       </Link>
       <div className="flex items-center gap-2">

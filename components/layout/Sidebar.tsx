@@ -5,7 +5,50 @@ import OnboardingChecklist from "@/components/onboarding/OnboardingChecklist";
 import TrendingWidget from "@/components/trending/TrendingWidget";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
-export default async function Sidebar() {
+export default async function Sidebar({
+  variant = "left",
+}: {
+  variant?: "left" | "right";
+}) {
+  if (variant === "left") {
+    return (
+      <aside className="sticky top-16 hidden h-[calc(100dvh-4rem)] w-56 shrink-0 overflow-auto pr-2 lg:block">
+        <nav className="space-y-1">
+          <Link
+            href="/"
+            className="block rounded-md px-3 py-2 text-sm font-medium text-zinc-900 hover:bg-white"
+          >
+            Feed
+          </Link>
+          <Link
+            href="/scam-radar"
+            className="block rounded-md px-3 py-2 text-sm font-medium text-zinc-900 hover:bg-white"
+          >
+            Scam Radar
+          </Link>
+          <Link
+            href="/post/new"
+            className="block rounded-md px-3 py-2 text-sm font-medium text-zinc-900 hover:bg-white"
+          >
+            Crear post
+          </Link>
+          <Link
+            href="/onboarding"
+            className="block rounded-md px-3 py-2 text-sm font-medium text-zinc-900 hover:bg-white"
+          >
+            Onboarding
+          </Link>
+          <Link
+            href="/profile"
+            className="block rounded-md px-3 py-2 text-sm font-medium text-zinc-900 hover:bg-white"
+          >
+            Perfil
+          </Link>
+        </nav>
+      </aside>
+    );
+  }
+
   const supabase = await createSupabaseServerClient();
   const {
     data: { session },
@@ -54,50 +97,16 @@ export default async function Sidebar() {
     : baseCommunities;
 
   return (
-    <aside className="hidden w-64 shrink-0 border-r border-zinc-200 bg-white p-4 md:block">
-      <nav className="space-y-1">
-        <Link
-          href="/"
-          className="block rounded-md px-3 py-2 text-sm text-zinc-900 hover:bg-zinc-100"
-        >
-          Feed
-        </Link>
-        <Link
-          href="/scam-radar"
-          className="block rounded-md px-3 py-2 text-sm text-zinc-900 hover:bg-zinc-100"
-        >
-          Scam Radar
-        </Link>
-        <Link
-          href="/post/new"
-          className="block rounded-md px-3 py-2 text-sm text-zinc-900 hover:bg-zinc-100"
-        >
-          Crear post
-        </Link>
-        <Link
-          href="/onboarding"
-          className="block rounded-md px-3 py-2 text-sm text-zinc-900 hover:bg-zinc-100"
-        >
-          Onboarding
-        </Link>
-        <Link
-          href="/profile"
-          className="block rounded-md px-3 py-2 text-sm text-zinc-900 hover:bg-zinc-100"
-        >
-          Perfil
-        </Link>
-      </nav>
-
-      <div className="mt-6">
+    <aside className="sticky top-16 hidden h-[calc(100dvh-4rem)] w-80 shrink-0 overflow-auto pl-2 xl:block">
+      <div className="space-y-4">
         {preferredMode === "beginner" ? <OnboardingChecklist initialStep={onboardingStep} /> : null}
-        <div className="mb-4">
-          <TrendingWidget />
+        <TrendingWidget />
+        <div className="rounded-lg border border-zinc-200 bg-white p-3">
+          <div className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-500">
+            Comunidades
+          </div>
+          <CommunityList communities={communities} />
         </div>
-
-        <div className="mb-2 px-2 text-xs font-medium uppercase tracking-wide text-zinc-500">
-          Comunidades
-        </div>
-        <CommunityList communities={communities} />
       </div>
     </aside>
   );
