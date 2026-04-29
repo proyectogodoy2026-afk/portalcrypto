@@ -38,6 +38,28 @@ export default function OnboardingFlow() {
 
   const completed = profile?.onboarding_completed ?? false;
 
+  async function updateProfileWithFallback(payload: Record<string, unknown>) {
+    const updatePayload: Record<string, unknown> = { ...payload };
+    let lastError: unknown = null;
+
+    while (Object.keys(updatePayload).length > 0) {
+      const res = await supabase.from("profiles").update(updatePayload as never).eq("id", user!.id);
+      if (!res.error) return { ok: true as const };
+
+      lastError = res.error;
+      const msg =
+        typeof (res.error as unknown as { message?: unknown })?.message === "string"
+          ? (res.error as unknown as { message: string }).message
+          : "";
+      const match = /column\s+"([^"]+)"/i.exec(msg);
+      const missing = match?.[1];
+      if (!missing || !(missing in updatePayload)) break;
+      delete updatePayload[missing];
+    }
+
+    return { ok: false as const, error: lastError };
+  }
+
   async function onSave() {
     setError(null);
     if (!user) {
@@ -58,23 +80,37 @@ export default function OnboardingFlow() {
       onboarding_completed: true,
     };
 
-    const first = await supabase
-      .from("profiles")
-      .update({
-        ...baseUpdate,
-        onboarding_step: parsed.data.preferred_mode === "beginner" ? 0 : null,
-      })
-      .eq("id", user.id);
+    const fullUpdate = {
+      ...baseUpdate,
+      onboarding_step: parsed.data.preferred_mode === "beginner" ? 0 : null,
+    };
 
-    const updateError =
-      first.error?.message?.toLowerCase().includes("onboarding_step") &&
-      first.error.message.toLowerCase().includes("column")
-        ? (await supabase.from("profiles").update(baseUpdate).eq("id", user.id)).error
-        : first.error;
+    const result = await updateProfileWithFallback(fullUpdate);
     setSaving(false);
 
-    if (updateError) {
-      setError("No pudimos guardar tu onboarding. Intentá de nuevo.");
+    if (!result.ok) {
+      const msg =
+        typeof (result.error as unknown as { message?: unknown })?.message === "string"
+          ? (result.error as unknown as { message: string }).message
+          : null;
+      const status =
+        typeof (result.error as unknown as { status?: unknown })?.status === "number"
+          ? (result.error as unknown as { status: number }).status
+          : null;
+
+      const lower = (msg ?? "").toLowerCase();
+      if (lower.includes("row-level security") || lower.includes("permission denied")) {
+        setError(
+          "No pudimos guardar tu onboarding por permisos (RLS). Revisá la policy de UPDATE en profiles.",
+        );
+        return;
+      }
+
+      setError(
+        status
+          ? `No pudimos guardar tu onboarding (error ${status}). ${msg ?? ""}`.trim()
+          : `No pudimos guardar tu onboarding. ${msg ?? ""}`.trim(),
+      );
       return;
     }
 
