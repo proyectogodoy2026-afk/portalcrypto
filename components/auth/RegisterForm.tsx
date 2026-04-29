@@ -58,7 +58,19 @@ export default function RegisterForm() {
     setLoading(false);
 
     if (signUpError) {
-      setError("No pudimos crear tu cuenta. Probá con otro email.");
+      const details =
+        typeof (signUpError as unknown as { message?: unknown })?.message === "string"
+          ? (signUpError as unknown as { message: string }).message
+          : null;
+      const status =
+        typeof (signUpError as unknown as { status?: unknown })?.status === "number"
+          ? (signUpError as unknown as { status: number }).status
+          : null;
+      setError(
+        status
+          ? `No pudimos crear tu cuenta (error ${status}). ${details ?? ""}`.trim()
+          : `No pudimos crear tu cuenta. ${details ?? ""}`.trim(),
+      );
       return;
     }
 
@@ -142,4 +154,3 @@ export default function RegisterForm() {
     </div>
   );
 }
-
