@@ -14,7 +14,7 @@ export async function GET(req: Request) {
   const offsetRaw = url.searchParams.get("offset");
   const offset = Math.max(0, Number(offsetRaw ?? 0) || 0);
 
-  const supabase = createSupabaseRouteClient();
+  const supabase = await createSupabaseRouteClient();
   const {
     data: { session },
   } = await supabase.auth.getSession();

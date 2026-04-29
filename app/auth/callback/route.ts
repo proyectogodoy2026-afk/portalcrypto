@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(new URL(`/auth/login?next=${encodeURIComponent(next)}`, req.url));
   }
 
-  const supabase = createSupabaseRouteClient();
+  const supabase = await createSupabaseRouteClient();
   const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
   if (error || !data.session?.user) {

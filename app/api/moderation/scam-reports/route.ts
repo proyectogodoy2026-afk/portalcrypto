@@ -1,7 +1,7 @@
 import { createSupabaseRouteClient } from "@/lib/supabase/server";
 
 export async function GET(req: Request) {
-  const supabase = createSupabaseRouteClient();
+  const supabase = await createSupabaseRouteClient();
   const {
     data: { session },
   } = await supabase.auth.getSession();
@@ -47,4 +47,3 @@ export async function GET(req: Request) {
 
   return Response.json({ reports: data ?? [] }, { status: 200 });
 }
-

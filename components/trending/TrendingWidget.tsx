@@ -24,7 +24,7 @@ function truncate(value: string, max = 56) {
 }
 
 export default async function TrendingWidget() {
-  const supabase = createSupabaseServerClient();
+  const supabase = await createSupabaseServerClient();
   const sinceIso = getSinceIso();
 
   const { data } = await supabase

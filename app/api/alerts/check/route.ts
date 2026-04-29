@@ -31,7 +31,7 @@ function parseAlerts(value: unknown): PriceAlert[] {
 }
 
 export async function POST() {
-  const supabase = createSupabaseRouteClient();
+  const supabase = await createSupabaseRouteClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -91,7 +91,7 @@ export async function POST() {
 
   const updatePayload: Record<string, unknown> = { price_alerts: nextAlerts };
   while (Object.keys(updatePayload).length > 0) {
-    const { error } = await supabase.from("profiles").update(updatePayload).eq("id", user.id);
+    const { error } = await supabase.from("profiles").update(updatePayload as never).eq("id", user.id);
     if (!error) break;
     const match = /column\s+"([^"]+)"/i.exec(error.message ?? "");
     const missing = match?.[1];

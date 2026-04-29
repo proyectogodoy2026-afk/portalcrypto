@@ -13,7 +13,7 @@ const createSchema = z.object({
 });
 
 export async function GET(req: Request) {
-  const supabase = createSupabaseRouteClient();
+  const supabase = await createSupabaseRouteClient();
   const {
     data: { session },
   } = await supabase.auth.getSession();
@@ -53,7 +53,7 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const supabase = createSupabaseRouteClient();
+  const supabase = await createSupabaseRouteClient();
   const {
     data: { session },
   } = await supabase.auth.getSession();
@@ -111,4 +111,3 @@ export async function POST(req: Request) {
 
   return Response.json({ id: inserted.id }, { status: 200 });
 }
-

@@ -31,7 +31,7 @@ export default async function ScamRadarPage({
 }: {
   searchParams: { reason?: string };
 }) {
-  const supabase = createSupabaseServerClient();
+  const supabase = await createSupabaseServerClient();
   const reason = (searchParams.reason ?? "").trim();
 
   let query = supabase
@@ -188,4 +188,3 @@ export default async function ScamRadarPage({
     </div>
   );
 }
-

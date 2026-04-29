@@ -10,7 +10,7 @@ type RankingRow = {
 };
 
 export async function GET() {
-  const supabase = createSupabaseRouteClient();
+  const supabase = await createSupabaseRouteClient();
   const {
     data: { session },
   } = await supabase.auth.getSession();
@@ -73,4 +73,3 @@ export async function GET() {
 
   return Response.json({ ranking }, { status: 200 });
 }
-

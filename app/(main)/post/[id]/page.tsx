@@ -12,7 +12,7 @@ export default async function PostPage({
   params: { id: string };
 }) {
   const { id } = params;
-  const supabase = createSupabaseServerClient();
+  const supabase = await createSupabaseServerClient();
   const {
     data: { session },
   } = await supabase.auth.getSession();

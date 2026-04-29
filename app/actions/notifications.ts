@@ -32,7 +32,7 @@ export async function createNotification(input: {
 
   if (!parsed.success) return { ok: false, message: "Parámetros inválidos." };
 
-  const supabase = createSupabaseServerClient();
+  const supabase = await createSupabaseServerClient();
   const { error } = await supabase.from("notifications").insert({
     user_id: parsed.data.userId,
     type: parsed.data.type,
@@ -45,4 +45,3 @@ export async function createNotification(input: {
   if (error) return { ok: false, message: "No pudimos crear la notificación." };
   return { ok: true };
 }
-

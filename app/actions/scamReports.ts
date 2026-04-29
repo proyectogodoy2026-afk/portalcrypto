@@ -49,7 +49,7 @@ export async function reportScam(input: {
     return { ok: false, message: parsed.error.issues[0]?.message ?? "Datos inválidos." };
   }
 
-  const supabase = createSupabaseServerClient();
+  const supabase = await createSupabaseServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -141,7 +141,7 @@ export async function reportScam(input: {
       isFlagged = true;
     }
 
-    await supabase.from("posts").update(updatePayload).eq("id", targetId);
+    await supabase.from("posts").update(updatePayload as never).eq("id", targetId);
   }
 
   if (parsed.data.targetType === "comment" && targetId) {
@@ -193,7 +193,7 @@ export async function reviewScamReport(input: {
 
   if (!parsed.success) return { ok: false, message: "Parámetros inválidos." };
 
-  const supabase = createSupabaseServerClient();
+  const supabase = await createSupabaseServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -240,7 +240,7 @@ async function getCoinIdentitySafe(coinId: string): Promise<{ name: string; symb
 }
 
 async function notifyModerators(args: {
-  supabase: ReturnType<typeof createSupabaseServerClient>;
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>;
   reporterId: string;
   reason: string;
   targetType: string;
@@ -283,7 +283,7 @@ async function notifyModerators(args: {
 }
 
 async function notifyFollowersAboutConfirmedScam(args: {
-  supabase: ReturnType<typeof createSupabaseServerClient>;
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>;
   reportId: string;
 }) {
   const { data: report } = await args.supabase

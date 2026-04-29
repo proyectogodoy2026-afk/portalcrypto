@@ -30,7 +30,7 @@ export async function updateAlertSettings(input: z.input<typeof schema>) {
     return { ok: false as const, message: parsed.error.issues[0]?.message ?? "Datos inválidos." };
   }
 
-  const supabase = createSupabaseServerClient();
+  const supabase = await createSupabaseServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -50,7 +50,7 @@ export async function updateAlertSettings(input: z.input<typeof schema>) {
   let lastErrorMessage: string | null = null;
 
   while (Object.keys(updatePayload).length > 0) {
-    const { error } = await supabase.from("profiles").update(updatePayload).eq("id", user.id);
+    const { error } = await supabase.from("profiles").update(updatePayload as never).eq("id", user.id);
     if (!error) return { ok: true as const };
     lastErrorMessage = error.message ?? null;
     const match = /column\s+"([^"]+)"/i.exec(error.message ?? "");

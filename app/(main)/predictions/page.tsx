@@ -16,7 +16,7 @@ type RankingRow = {
 };
 
 export default async function PredictionsPage() {
-  const supabase = createSupabaseServerClient();
+  const supabase = await createSupabaseServerClient();
   const {
     data: { session },
   } = await supabase.auth.getSession();
@@ -66,7 +66,7 @@ export default async function PredictionsPage() {
   );
 }
 
-async function getMonthlyRanking(supabase: ReturnType<typeof createSupabaseServerClient>) {
+async function getMonthlyRanking(supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>) {
   const now = new Date();
   const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0));
   const monthStartIso = monthStart.toISOString();
@@ -115,4 +115,3 @@ async function getMonthlyRanking(supabase: ReturnType<typeof createSupabaseServe
 
   return ranking;
 }
-

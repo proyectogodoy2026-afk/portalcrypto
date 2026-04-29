@@ -29,7 +29,7 @@ export async function castVote(
     return { ok: false, message: "Parámetros inválidos." };
   }
 
-  const supabase = createSupabaseServerClient();
+  const supabase = await createSupabaseServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -148,7 +148,7 @@ export async function castVote(
 
     const { error } = await supabase
       .from("posts")
-      .update(updatePayload)
+      .update(updatePayload as never)
       .eq("id", parsedTargetId.data);
     if (error) return { ok: false, message: "No pudimos actualizar el post." };
 

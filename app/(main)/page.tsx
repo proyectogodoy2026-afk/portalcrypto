@@ -16,7 +16,7 @@ function riskColor(value: string | null) {
 }
 
 export default async function FeedPage() {
-  const supabase = createSupabaseServerClient();
+  const supabase = await createSupabaseServerClient();
   const {
     data: { session },
   } = await supabase.auth.getSession();

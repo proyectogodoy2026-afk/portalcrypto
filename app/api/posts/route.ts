@@ -42,7 +42,7 @@ type CoinPriceResponse = Record<
 >;
 
 export async function POST(req: Request) {
-  const supabase = createSupabaseRouteClient();
+  const supabase = await createSupabaseRouteClient();
   const {
     data: { session },
   } = await supabase.auth.getSession();

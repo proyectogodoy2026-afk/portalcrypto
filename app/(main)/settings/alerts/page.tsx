@@ -31,7 +31,7 @@ function parsePriceAlerts(value: unknown): PriceAlert[] {
 }
 
 export default async function AlertsSettingsPage() {
-  const supabase = createSupabaseServerClient();
+  const supabase = await createSupabaseServerClient();
   const {
     data: { session },
   } = await supabase.auth.getSession();
