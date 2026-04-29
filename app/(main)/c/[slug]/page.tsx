@@ -1,4 +1,4 @@
-import { notFound, redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 import Link from "next/link";
 
 import Feed from "@/components/post/Feed";
@@ -15,7 +15,7 @@ export default async function CommunityPage({
 }: {
   params: { slug: string };
 }) {
-  const { slug } = params;
+  const slugRaw = (params.slug ?? "").trim();
 
   const supabase = await createSupabaseServerClient();
   const {
@@ -40,16 +40,45 @@ export default async function CommunityPage({
   const { data: community } = await supabase
     .from("communities")
     .select("id,name,slug,type,member_count")
-    .ilike("slug", slug.trim())
+    .eq("slug", slugRaw)
     .maybeSingle();
 
-  const typedCommunity = community as unknown as Pick<
+  const { data: communityLower } = !community && slugRaw
+    ? await supabase
+        .from("communities")
+        .select("id,name,slug,type,member_count")
+        .eq("slug", slugRaw.toLowerCase())
+        .maybeSingle()
+    : { data: null };
+
+  const { data: communityIlike } = !community && !communityLower && slugRaw
+    ? await supabase
+        .from("communities")
+        .select("id,name,slug,type,member_count")
+        .ilike("slug", slugRaw)
+        .maybeSingle()
+    : { data: null };
+
+  const typedCommunity = (community ?? communityLower ?? communityIlike) as unknown as Pick<
     CommunityRow,
     "id" | "name" | "slug" | "type" | "member_count"
   > | null;
 
   if (!typedCommunity) {
-    notFound();
+    return (
+      <div className="rounded-lg border border-zinc-200 bg-white p-6">
+        <div className="text-lg font-semibold text-zinc-900">Comunidad no encontrada</div>
+        <div className="mt-1 text-sm text-zinc-600">
+          No existe /c/{slugRaw || "—"} en tu base de datos.
+        </div>
+        <Link
+          href="/"
+          className="mt-4 inline-flex h-10 items-center justify-center rounded-md bg-zinc-900 px-4 text-sm font-medium text-white hover:bg-zinc-800"
+        >
+          Volver al feed
+        </Link>
+      </div>
+    );
   }
 
   const { data: initialPosts } = await supabase
@@ -143,7 +172,7 @@ export default async function CommunityPage({
             <h1 className="text-xl font-semibold text-zinc-900">
               {typedCommunity.name ?? "Comunidad"}
             </h1>
-            <div className="mt-1 text-sm text-zinc-600">/c/{slug}</div>
+            <div className="mt-1 text-sm text-zinc-600">/c/{typedCommunity.slug}</div>
             <div className="mt-1 text-xs text-zinc-500">
               {(typedCommunity.member_count ?? 0).toLocaleString()} miembros
             </div>
@@ -158,7 +187,7 @@ export default async function CommunityPage({
       </div>
       <Feed
         initialPosts={basePosts as unknown as FeedPost[]}
-        communitySlug={slug}
+        communitySlug={typedCommunity.slug ?? slugRaw}
       />
     </div>
   );

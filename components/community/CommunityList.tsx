@@ -65,7 +65,7 @@ export default function CommunityList({ communities }: { communities: Community[
           </div>
           <div className="space-y-1">
             {g.communities.map((c) => {
-              const href = c.slug ? `/c/${c.slug}` : "/";
+              const href = c.slug ? `/c/${encodeURIComponent(c.slug)}` : "/";
               const active = pathname === href || pathname.startsWith(`${href}/`);
               return (
                 <Link
