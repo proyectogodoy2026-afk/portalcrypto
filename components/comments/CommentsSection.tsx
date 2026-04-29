@@ -42,9 +42,11 @@ function timeAgoAt(value: string | null, nowMs: number | null) {
 export default function CommentsSection({
   postId,
   comments,
+  variant = "page",
 }: {
   postId: string;
   comments: CommentRow[];
+  variant?: "page" | "inline";
 }) {
   const router = useRouter();
   const supabase = React.useMemo(() => createSupabaseBrowserClient(), []);
@@ -52,13 +54,16 @@ export default function CommentsSection({
 
   const [nowMs, setNowMs] = React.useState<number | null>(null);
   const [items, setItems] = React.useState<CommentRow[]>(comments);
+  const [loading, setLoading] = React.useState(false);
   const [content, setContent] = React.useState("");
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    setItems(comments);
-  }, [comments]);
+    if (variant === "page") {
+      setItems(comments);
+    }
+  }, [comments, variant]);
 
   React.useEffect(() => {
     const immediate = window.setTimeout(() => setNowMs(Date.now()), 0);
@@ -68,6 +73,32 @@ export default function CommentsSection({
       window.clearInterval(id);
     };
   }, []);
+
+  const loadComments = React.useCallback(async () => {
+    setError(null);
+    setLoading(true);
+    const { data, error: fetchError } = await supabase
+      .from("comments")
+      .select("id,author_id,content,created_at,profiles ( username, avatar_url )")
+      .eq("post_id", postId)
+      .neq("is_removed", true)
+      .order("created_at", { ascending: true, nullsFirst: false })
+      .limit(100);
+
+    setLoading(false);
+
+    if (fetchError) {
+      setError(`No pudimos cargar los comentarios: ${fetchError.message}`);
+      return;
+    }
+
+    setItems((data ?? []) as unknown as CommentRow[]);
+  }, [postId, supabase]);
+
+  React.useEffect(() => {
+    if (variant !== "inline") return;
+    void loadComments();
+  }, [loadComments, variant]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -111,7 +142,11 @@ export default function CommentsSection({
       return;
     }
 
-    router.refresh();
+    if (variant === "page") {
+      router.refresh();
+    } else {
+      await loadComments();
+    }
   }
 
   return (
@@ -138,7 +173,11 @@ export default function CommentsSection({
         ) : null}
       </form>
 
-      {items.length === 0 ? (
+      {loading ? (
+        <div className="rounded-lg border border-zinc-200 bg-white p-6 text-sm text-zinc-600">
+          Cargando comentarios…
+        </div>
+      ) : items.length === 0 ? (
         <div className="rounded-lg border border-zinc-200 bg-white p-6 text-sm text-zinc-600">
           Todavía no hay comentarios.
         </div>

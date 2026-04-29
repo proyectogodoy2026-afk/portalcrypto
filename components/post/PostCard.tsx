@@ -1,9 +1,10 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 
+import CommentsSection from "@/components/comments/CommentsSection";
 import PostPriceHeader from "@/components/market/PostPriceHeader";
 import PostVotes, { type VoteType } from "@/components/post/PostVotes";
 import GlossaryTerm from "@/components/glossary/GlossaryTerm";
@@ -98,11 +99,13 @@ export default function PostCard({
   hideMarketData?: boolean;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const author = normalizeOne(post.profiles);
   const community = normalizeOne(post.communities);
 
   const tag = post.tag?.trim() ? post.tag : null;
   const [simple, setSimple] = React.useState(false);
+  const [showInlineComments, setShowInlineComments] = React.useState(false);
 
   const terms = React.useMemo(
     () =>
@@ -176,17 +179,7 @@ export default function PostCard({
           </div>
 
           <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-600">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                router.push(`/post/${post.id}#comments`);
-              }}
-              className="rounded-md px-1 text-xs font-medium text-zinc-700 underline-offset-4 hover:underline"
-            >
-              Ver y comentar ({post.comment_count ?? 0})
-            </button>
+            <div>{post.comment_count ?? 0} comentarios</div>
             <button
               type="button"
               onClick={(e) => {
@@ -253,16 +246,52 @@ export default function PostCard({
     </>
   );
 
-  if (disableLink) {
-    return <div className="block rounded-lg border border-zinc-200 bg-white p-4">{content}</div>;
-  }
-
   return (
-    <Link
-      href={`/post/${post.id}`}
-      className="block rounded-lg border border-zinc-200 bg-white p-4 hover:bg-zinc-50"
-    >
-      {content}
-    </Link>
+    <div className="rounded-lg border border-zinc-200 bg-white p-4">
+      <div
+        role={disableLink ? undefined : "link"}
+        tabIndex={disableLink ? undefined : 0}
+        className={disableLink ? "" : "cursor-pointer hover:bg-zinc-50"}
+        onClick={(e) => {
+          if (disableLink) return;
+          if (pathname.startsWith("/post/")) return;
+          const el = e.target as HTMLElement | null;
+          if (el?.closest("button,a,textarea,input,select,label")) return;
+          router.push(`/post/${post.id}`);
+        }}
+        onKeyDown={(e) => {
+          if (disableLink) return;
+          if (pathname.startsWith("/post/")) return;
+          if (e.key !== "Enter") return;
+          router.push(`/post/${post.id}`);
+        }}
+      >
+        {content}
+      </div>
+
+      {!disableLink ? (
+        <div className="mt-3">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setShowInlineComments((v) => !v);
+            }}
+            className="rounded-md px-1 text-xs font-medium text-zinc-700 underline-offset-4 hover:underline"
+          >
+            {showInlineComments
+              ? "Ocultar comentarios"
+              : `Ver y comentar (${post.comment_count ?? 0})`}
+          </button>
+        </div>
+      ) : null}
+
+      {showInlineComments ? (
+        <div className="mt-4">
+          <CommentsSection postId={post.id} comments={[]} variant="inline" />
+        </div>
+      ) : null}
+    </div>
   );
 }
