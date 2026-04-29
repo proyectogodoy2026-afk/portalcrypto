@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 export default async function NewPostPage({
   searchParams,
 }: {
-  searchParams: { community?: string };
+  searchParams: { community?: string; coin?: string; coin_name?: string; coin_symbol?: string };
 }) {
   const supabase = await createSupabaseServerClient();
   const {
@@ -37,10 +37,18 @@ export default async function NewPostPage({
     .order("member_count", { ascending: false, nullsFirst: false });
 
   const defaultCommunityId = (searchParams.community ?? "").trim() || null;
+  const coinId = (searchParams.coin ?? "").trim();
+  const coinName = (searchParams.coin_name ?? "").trim();
+  const coinSymbol = (searchParams.coin_symbol ?? "").trim();
+  const defaultAnchoredCoin =
+    coinId && coinName && coinSymbol
+      ? { id: coinId, name: coinName, symbol: coinSymbol, thumb: "" }
+      : null;
   return (
     <PostEditor
       communities={(communities ?? []) as CommunityOption[]}
       defaultCommunityId={defaultCommunityId}
+      defaultAnchoredCoin={defaultAnchoredCoin}
     />
   );
 }

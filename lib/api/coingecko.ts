@@ -30,7 +30,10 @@ export async function coingeckoFetch(path: string, init?: RequestInit) {
 
 export interface CoinPrice {
   id: string;
+  name: string;
   symbol: string;
+  image: string | null;
+  market_cap_rank: number | null;
   current_price: number;
   price_change_percentage_1h_in_currency: number;
   price_change_percentage_24h: number;
@@ -50,7 +53,10 @@ export type SearchResult = {
 type CoinsMarketsResponse = Array<
   Partial<{
     id: string;
+    name: string;
     symbol: string;
+    image: string;
+    market_cap_rank: number;
     current_price: number;
     price_change_percentage_1h_in_currency: number;
     price_change_percentage_24h: number;
@@ -84,7 +90,10 @@ function buildMarketsQuery(ids: string[]) {
 function normalizeCoinPrice(raw: CoinsMarketsResponse[number]): CoinPrice {
   return {
     id: String(raw.id ?? ""),
+    name: String(raw.name ?? ""),
     symbol: String(raw.symbol ?? ""),
+    image: typeof raw.image === "string" ? raw.image : null,
+    market_cap_rank: typeof raw.market_cap_rank === "number" ? raw.market_cap_rank : null,
     current_price: Number(raw.current_price ?? 0),
     price_change_percentage_1h_in_currency: Number(
       raw.price_change_percentage_1h_in_currency ?? 0,
@@ -117,6 +126,29 @@ export async function getPrice(coinId: string): Promise<CoinPrice> {
     throw new Error("No se encontró el activo");
   }
   return coin;
+}
+
+export async function getTopMarkets({
+  page = 1,
+  perPage = 50,
+}: {
+  page?: number;
+  perPage?: number;
+} = {}): Promise<CoinPrice[]> {
+  const safePage = Number.isFinite(page) && page > 0 ? Math.floor(page) : 1;
+  const safePerPage =
+    Number.isFinite(perPage) && perPage > 0 ? Math.min(100, Math.floor(perPage)) : 50;
+
+  const params = new URLSearchParams();
+  params.set("vs_currency", "usd");
+  params.set("order", "market_cap_desc");
+  params.set("per_page", String(safePerPage));
+  params.set("page", String(safePage));
+  params.set("price_change_percentage", "1h,24h,7d");
+  params.set("sparkline", "false");
+
+  const data = (await coingeckoFetch(`/coins/markets?${params.toString()}`)) as CoinsMarketsResponse;
+  return (data ?? []).map(normalizeCoinPrice).filter((c) => c.id);
 }
 
 export async function searchCoins(query: string): Promise<SearchResult[]> {

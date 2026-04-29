@@ -40,9 +40,11 @@ const beginnerSchema = z.object({
 export default function PostEditor({
   communities,
   defaultCommunityId,
+  defaultAnchoredCoin,
 }: {
   communities: CommunityOption[];
   defaultCommunityId?: string | null;
+  defaultAnchoredCoin?: TokenResult | null;
 }) {
   const router = useRouter();
   const { profile, loading } = useAuth();
@@ -61,7 +63,9 @@ export default function PostEditor({
   const [whyItMatters, setWhyItMatters] = React.useState("");
   const [whoIsAffected, setWhoIsAffected] = React.useState("");
 
-  const [anchoredCoin, setAnchoredCoin] = React.useState<TokenResult | null>(null);
+  const [anchoredCoin, setAnchoredCoin] = React.useState<TokenResult | null>(
+    defaultAnchoredCoin ?? null,
+  );
 
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
