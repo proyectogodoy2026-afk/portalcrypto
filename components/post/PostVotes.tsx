@@ -76,9 +76,20 @@ export default function PostVotes({
     }
   });
 
-  const derivedChoice =
-    currentVote === "bullish" ? "confianza" : currentVote === "bearish" ? "nerviosismo" : null;
-  const activeBeginnerChoice = beginnerChoice ?? derivedChoice;
+  const activeBeginnerChoice = React.useMemo(() => {
+    if (!isBeginner) return null;
+
+    const isBullChoice = beginnerChoice === "confianza" || beginnerChoice === "fomo";
+    const isBearChoice = beginnerChoice === "nerviosismo" || beginnerChoice === "miedo";
+
+    if (currentVote === "bullish") {
+      return isBullChoice ? beginnerChoice : "confianza";
+    }
+    if (currentVote === "bearish") {
+      return isBearChoice ? beginnerChoice : "nerviosismo";
+    }
+    return beginnerChoice;
+  }, [beginnerChoice, currentVote, isBeginner]);
 
   const totalSentiment = counts.bullish + counts.bearish;
   const bullPct = pct(counts.bullish, totalSentiment);
@@ -98,6 +109,7 @@ export default function PostVotes({
       return;
     }
 
+    const previousChoice = beginnerChoice;
     if (isBeginner && choice) {
       const nextChoice = currentVote === voteType ? null : choice;
       setBeginnerChoice(nextChoice);
@@ -124,11 +136,29 @@ export default function PostVotes({
 
         if (!result.ok) {
           setOptimistic(previousOptimistic);
+          setBeginnerChoice(previousChoice);
           setError(result.message);
           return;
         }
 
         setOptimistic({ vote: result.currentVote, counts: result.counts });
+        if (isBeginner) {
+          const next =
+            result.currentVote === "bullish"
+              ? (previousChoice === "confianza" || previousChoice === "fomo"
+                  ? previousChoice
+                  : "confianza")
+              : result.currentVote === "bearish"
+                ? (previousChoice === "nerviosismo" || previousChoice === "miedo"
+                    ? previousChoice
+                    : "nerviosismo")
+                : null;
+          setBeginnerChoice(next);
+          try {
+            if (next) window.sessionStorage.setItem(storageKey, next);
+            else window.sessionStorage.removeItem(storageKey);
+          } catch {}
+        }
       })();
     });
   }

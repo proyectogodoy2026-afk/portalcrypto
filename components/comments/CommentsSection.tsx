@@ -96,10 +96,6 @@ export default function CommentsSection({
       post_id: postId,
       author_id: user.id,
       content: trimmed,
-      is_removed: false,
-      is_flagged: false,
-      upvotes: 0,
-      downvotes: 0,
     } as never);
 
     setSubmitting(false);
@@ -119,7 +115,7 @@ export default function CommentsSection({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" id="comments">
       <div className="text-sm font-semibold text-zinc-900">Comentarios</div>
 
       <form onSubmit={onSubmit} className="rounded-lg border border-zinc-200 bg-white p-4">

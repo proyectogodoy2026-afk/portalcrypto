@@ -98,6 +98,22 @@ export async function GET(req: Request) {
   const postIds = (posts as Array<{ id: string }>).map((p) => p.id).filter(Boolean);
 
   if (postIds.length > 0) {
+    const counts = new Map<string, { bullish: number; bearish: number }>();
+    const { data: allVotes } = await supabase
+      .from("votes")
+      .select("target_id,vote_type")
+      .eq("target_type", "post")
+      .in("target_id", postIds)
+      .in("vote_type", ["bullish", "bearish"])
+      .limit(5000);
+
+    for (const v of (allVotes ?? []) as Array<{ target_id: string; vote_type: string }>) {
+      const current = counts.get(v.target_id) ?? { bullish: 0, bearish: 0 };
+      if (v.vote_type === "bullish") current.bullish += 1;
+      if (v.vote_type === "bearish") current.bearish += 1;
+      counts.set(v.target_id, current);
+    }
+
     const { data: votes } = await supabase
       .from("votes")
       .select("target_id,vote_type")
@@ -114,6 +130,9 @@ export async function GET(req: Request) {
       const id = p.id as string;
       const v = map.get(id) ?? null;
       p.user_vote = v === "bullish" || v === "bearish" ? v : null;
+      const c = counts.get(id) ?? { bullish: 0, bearish: 0 };
+      p.bullish_votes = c.bullish;
+      p.bearish_votes = c.bearish;
     }
   }
   const nextOffset = posts.length === 20 ? offset + 20 : null;

@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 import PostPriceHeader from "@/components/market/PostPriceHeader";
 import PostVotes, { type VoteType } from "@/components/post/PostVotes";
@@ -96,6 +97,7 @@ export default function PostCard({
   disableLink?: boolean;
   hideMarketData?: boolean;
 }) {
+  const router = useRouter();
   const author = normalizeOne(post.profiles);
   const community = normalizeOne(post.communities);
 
@@ -174,7 +176,17 @@ export default function PostCard({
           </div>
 
           <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-600">
-            <div>{post.comment_count ?? 0} comentarios</div>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                router.push(`/post/${post.id}#comments`);
+              }}
+              className="rounded-md px-1 text-xs font-medium text-zinc-700 underline-offset-4 hover:underline"
+            >
+              Ver y comentar ({post.comment_count ?? 0})
+            </button>
             <button
               type="button"
               onClick={(e) => {

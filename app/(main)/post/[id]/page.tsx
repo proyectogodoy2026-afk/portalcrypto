@@ -76,8 +76,25 @@ export default async function PostPage({
     .eq("target_id", id)
     .maybeSingle();
 
+  const { data: allVotes } = await supabase
+    .from("votes")
+    .select("vote_type")
+    .eq("target_type", "post")
+    .eq("target_id", id)
+    .in("vote_type", ["bullish", "bearish"])
+    .limit(5000);
+
+  let bullishVotes = 0;
+  let bearishVotes = 0;
+  for (const v of (allVotes ?? []) as Array<{ vote_type: string }>) {
+    if (v.vote_type === "bullish") bullishVotes += 1;
+    if (v.vote_type === "bearish") bearishVotes += 1;
+  }
+
   const enhanced = {
     ...(post as unknown as Record<string, unknown>),
+    bullish_votes: bullishVotes,
+    bearish_votes: bearishVotes,
     user_vote:
       (vote as unknown as { vote_type?: string } | null)?.vote_type === "bullish" ||
       (vote as unknown as { vote_type?: string } | null)?.vote_type === "bearish"
