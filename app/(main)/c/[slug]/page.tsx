@@ -100,6 +100,18 @@ export default async function CommunityPage({
       counts.set(v.target_id, current);
     }
 
+    const commentCounts = new Map<string, number>();
+    const { data: commentRows } = await supabase
+      .from("comments")
+      .select("post_id")
+      .in("post_id", postIds)
+      .neq("is_removed", true)
+      .limit(5000);
+
+    for (const r of (commentRows ?? []) as Array<{ post_id: string }>) {
+      commentCounts.set(r.post_id, (commentCounts.get(r.post_id) ?? 0) + 1);
+    }
+
     const { data: votes } = await supabase
       .from("votes")
       .select("target_id,vote_type")
@@ -118,6 +130,7 @@ export default async function CommunityPage({
       const c = counts.get(id) ?? { bullish: 0, bearish: 0 };
       p.bullish_votes = c.bullish;
       p.bearish_votes = c.bearish;
+      p.comment_count = commentCounts.get(id) ?? 0;
     }
   }
 

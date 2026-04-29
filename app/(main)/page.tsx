@@ -66,6 +66,26 @@ export default async function FeedPage() {
       .limit(50);
 
     const questions = (rawQuestions ?? []) as unknown as FeedPost[];
+    const questionIds = questions.map((q) => q.id).filter(Boolean);
+    if (questionIds.length > 0) {
+      const commentCounts = new Map<string, number>();
+      const { data: commentRows } = await supabase
+        .from("comments")
+        .select("post_id")
+        .in("post_id", questionIds)
+        .neq("is_removed", true)
+        .limit(5000);
+
+      for (const r of (commentRows ?? []) as Array<{ post_id: string }>) {
+        commentCounts.set(r.post_id, (commentCounts.get(r.post_id) ?? 0) + 1);
+      }
+
+      for (const q of questions as Array<Record<string, unknown>>) {
+        const id = q.id as string;
+        q.comment_count = commentCounts.get(id) ?? 0;
+      }
+    }
+
     const ranked = [...questions].sort((a, b) => {
       const aScore =
         (a.comment_count ?? 0) * 2 + (a.bullish_votes ?? 0) + (a.bearish_votes ?? 0);
@@ -100,6 +120,25 @@ export default async function FeedPage() {
       created_at: string | null;
       comment_count: number | null;
     }>;
+
+    const beginnerIds = beginnerQuestions.map((q) => q.id).filter(Boolean);
+    if (beginnerIds.length > 0) {
+      const commentCounts = new Map<string, number>();
+      const { data: commentRows } = await supabase
+        .from("comments")
+        .select("post_id")
+        .in("post_id", beginnerIds)
+        .neq("is_removed", true)
+        .limit(5000);
+
+      for (const r of (commentRows ?? []) as Array<{ post_id: string }>) {
+        commentCounts.set(r.post_id, (commentCounts.get(r.post_id) ?? 0) + 1);
+      }
+
+      for (const q of beginnerQuestions) {
+        q.comment_count = commentCounts.get(q.id) ?? 0;
+      }
+    }
 
     return (
       <div className="space-y-8">
@@ -221,6 +260,18 @@ export default async function FeedPage() {
       counts.set(v.target_id, current);
     }
 
+    const commentCounts = new Map<string, number>();
+    const { data: commentRows } = await supabase
+      .from("comments")
+      .select("post_id")
+      .in("post_id", postIds)
+      .neq("is_removed", true)
+      .limit(5000);
+
+    for (const r of (commentRows ?? []) as Array<{ post_id: string }>) {
+      commentCounts.set(r.post_id, (commentCounts.get(r.post_id) ?? 0) + 1);
+    }
+
     const { data: votes } = await supabase
       .from("votes")
       .select("target_id,vote_type")
@@ -240,6 +291,7 @@ export default async function FeedPage() {
       const c = counts.get(id) ?? { bullish: 0, bearish: 0 };
       p.bullish_votes = c.bullish;
       p.bearish_votes = c.bearish;
+      p.comment_count = commentCounts.get(id) ?? 0;
     }
   }
 

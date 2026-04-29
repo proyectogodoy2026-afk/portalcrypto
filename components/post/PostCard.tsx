@@ -106,6 +106,11 @@ export default function PostCard({
   const tag = post.tag?.trim() ? post.tag : null;
   const [simple, setSimple] = React.useState(false);
   const [showInlineComments, setShowInlineComments] = React.useState(false);
+  const [commentCount, setCommentCount] = React.useState(post.comment_count ?? 0);
+
+  React.useEffect(() => {
+    setCommentCount(post.comment_count ?? 0);
+  }, [post.comment_count]);
 
   const terms = React.useMemo(
     () =>
@@ -179,7 +184,17 @@ export default function PostCard({
           </div>
 
           <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-600">
-            <div>{post.comment_count ?? 0} comentarios</div>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setShowInlineComments((v) => !v);
+              }}
+              className="rounded-md px-1 text-xs font-medium text-zinc-700 underline-offset-4 hover:underline"
+            >
+              {showInlineComments ? "Ocultar comentarios" : `Ver y comentar (${commentCount})`}
+            </button>
             <button
               type="button"
               onClick={(e) => {
@@ -270,26 +285,17 @@ export default function PostCard({
       </div>
 
       {!disableLink ? (
-        <div className="mt-3">
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              setShowInlineComments((v) => !v);
-            }}
-            className="rounded-md px-1 text-xs font-medium text-zinc-700 underline-offset-4 hover:underline"
-          >
-            {showInlineComments
-              ? "Ocultar comentarios"
-              : `Ver y comentar (${post.comment_count ?? 0})`}
-          </button>
-        </div>
+        <div className="mt-3" />
       ) : null}
 
       {showInlineComments ? (
         <div className="mt-4">
-          <CommentsSection postId={post.id} comments={[]} variant="inline" />
+          <CommentsSection
+            postId={post.id}
+            comments={[]}
+            variant="inline"
+            onCountChange={(n) => setCommentCount(n)}
+          />
         </div>
       ) : null}
     </div>

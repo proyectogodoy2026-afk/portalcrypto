@@ -43,10 +43,12 @@ export default function CommentsSection({
   postId,
   comments,
   variant = "page",
+  onCountChange,
 }: {
   postId: string;
   comments: CommentRow[];
   variant?: "page" | "inline";
+  onCountChange?: (count: number) => void;
 }) {
   const router = useRouter();
   const supabase = React.useMemo(() => createSupabaseBrowserClient(), []);
@@ -93,7 +95,8 @@ export default function CommentsSection({
     }
 
     setItems((data ?? []) as unknown as CommentRow[]);
-  }, [postId, supabase]);
+    onCountChange?.((data ?? []).length);
+  }, [onCountChange, postId, supabase]);
 
   React.useEffect(() => {
     if (variant !== "inline") return;
@@ -120,7 +123,10 @@ export default function CommentsSection({
       created_at: new Date().toISOString(),
       profiles: { username: profile?.username ?? null, avatar_url: profile?.avatar_url ?? null },
     };
-    setItems((prev) => [...prev, optimistic]);
+    setItems((prev) => {
+      onCountChange?.(prev.length + 1);
+      return [...prev, optimistic];
+    });
     setContent("");
 
     const { error: insertError } = await supabase.from("comments").insert({
