@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useRouter } from "next/navigation";
@@ -67,15 +66,25 @@ export default function CommunityList({ communities }: { communities: Community[
           </div>
           <div className="space-y-1">
             {g.communities.map((c) => {
-              const href = `/c/${c.slug}`;
+              const href = c.slug ? `/c/${c.slug}` : "/";
               const active = pathname === href || pathname.startsWith(`${href}/`);
               return (
                 <button
                   key={c.id}
                   type="button"
-                  onClick={() => router.push(href)}
+                  onClick={() => {
+                    const before =
+                      typeof window !== "undefined" ? window.location.pathname : null;
+                    router.push(href);
+                    if (typeof window === "undefined") return;
+                    window.setTimeout(() => {
+                      if (!before) return;
+                      if (window.location.pathname !== before) return;
+                      window.location.assign(href);
+                    }, 200);
+                  }}
                   className={cn(
-                    "flex items-center gap-2 rounded-md px-2 py-2 text-sm",
+                    "flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm",
                     active
                       ? "bg-zinc-900 text-white"
                       : "text-zinc-900 hover:bg-zinc-100",
