@@ -13,9 +13,10 @@ type CommunityRow = Database["public"]["Tables"]["communities"]["Row"];
 export default async function CommunityPage({
   params,
 }: {
-  params: { slug: string };
+  params: { slug?: string } | Promise<{ slug?: string }>;
 }) {
-  const slugRaw = (params.slug ?? "").trim();
+  const resolvedParams = await Promise.resolve(params);
+  const slugRaw = String(resolvedParams?.slug ?? "").trim();
 
   const supabase = await createSupabaseServerClient();
   const {
