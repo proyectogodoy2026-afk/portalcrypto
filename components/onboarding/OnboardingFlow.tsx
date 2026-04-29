@@ -9,13 +9,19 @@ import { Button } from "@/components/ui/button";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 const onboardingSchema = z.object({
-  level: z.string().min(1, "Seleccioná un nivel"),
+  level: z.enum(["beginner", "intermediate", "advanced"] as const, {
+    message: "Seleccioná un nivel",
+  }),
   preferred_mode: z.enum(["beginner", "advanced"] as const, {
     message: "Seleccioná un modo",
   }),
 });
 
-const LEVELS = ["Principiante", "Intermedio", "Avanzado"] as const;
+const LEVELS = [
+  { value: "beginner", label: "Principiante" },
+  { value: "intermediate", label: "Intermedio" },
+  { value: "advanced", label: "Avanzado" },
+] as const;
 const MODES = [
   { value: "beginner", label: "Principiante" },
   { value: "advanced", label: "Avanzado" },
@@ -27,7 +33,11 @@ export default function OnboardingFlow() {
   const { user, profile, refreshProfile } = useAuth();
 
   const [step, setStep] = React.useState(1);
-  const [level, setLevel] = React.useState(profile?.level ?? "");
+  const [level, setLevel] = React.useState(
+    profile?.level === "beginner" || profile?.level === "intermediate" || profile?.level === "advanced"
+      ? profile.level
+      : "",
+  );
   const [preferredMode, setPreferredMode] = React.useState(
     profile?.preferred_mode === "advanced" || profile?.preferred_mode === "beginner"
       ? profile.preferred_mode
@@ -147,17 +157,17 @@ export default function OnboardingFlow() {
             <div className="grid gap-2 sm:grid-cols-3">
               {LEVELS.map((value) => (
                 <button
-                  key={value}
+                  key={value.value}
                   type="button"
-                  onClick={() => setLevel(value)}
+                  onClick={() => setLevel(value.value)}
                   className={[
                     "rounded-md border px-3 py-2 text-sm",
-                    level === value
+                    level === value.value
                       ? "border-zinc-900 bg-zinc-900 text-white"
                       : "border-zinc-200 bg-white text-zinc-900 hover:bg-zinc-50",
                   ].join(" ")}
                 >
-                  {value}
+                  {value.label}
                 </button>
               ))}
             </div>
@@ -199,7 +209,8 @@ export default function OnboardingFlow() {
             <div className="text-sm font-medium text-zinc-900">Confirmación</div>
             <div className="rounded-md border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-800">
               <div>
-                <span className="font-medium">Nivel:</span> {level || "—"}
+                <span className="font-medium">Nivel:</span>{" "}
+                {level ? (LEVELS.find((l) => l.value === level)?.label ?? level) : "—"}
               </div>
               <div className="mt-1">
                 <span className="font-medium">Modo:</span>{" "}
