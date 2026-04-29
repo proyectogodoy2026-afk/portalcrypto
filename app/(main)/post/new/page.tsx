@@ -6,7 +6,11 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
-export default async function NewPostPage() {
+export default async function NewPostPage({
+  searchParams,
+}: {
+  searchParams: { community?: string };
+}) {
   const supabase = await createSupabaseServerClient();
   const {
     data: { session },
@@ -32,5 +36,11 @@ export default async function NewPostPage() {
     .select("id,name,slug,type,member_count")
     .order("member_count", { ascending: false, nullsFirst: false });
 
-  return <PostEditor communities={(communities ?? []) as CommunityOption[]} />;
+  const defaultCommunityId = (searchParams.community ?? "").trim() || null;
+  return (
+    <PostEditor
+      communities={(communities ?? []) as CommunityOption[]}
+      defaultCommunityId={defaultCommunityId}
+    />
+  );
 }

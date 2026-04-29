@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 
 import { cn } from "@/lib/utils/cn";
 import type { Database } from "@/lib/supabase/types";
@@ -54,6 +55,7 @@ function groupCommunities(communities: Community[]) {
 
 export default function CommunityList({ communities }: { communities: Community[] }) {
   const pathname = usePathname();
+  const router = useRouter();
   const groups = groupCommunities(communities);
 
   return (
@@ -68,9 +70,10 @@ export default function CommunityList({ communities }: { communities: Community[
               const href = `/c/${c.slug}`;
               const active = pathname === href || pathname.startsWith(`${href}/`);
               return (
-                <Link
+                <button
                   key={c.id}
-                  href={href}
+                  type="button"
+                  onClick={() => router.push(href)}
                   className={cn(
                     "flex items-center gap-2 rounded-md px-2 py-2 text-sm",
                     active
@@ -104,7 +107,7 @@ export default function CommunityList({ communities }: { communities: Community[
                     </div>
                   </div>
                   <div className={cn("h-2.5 w-2.5 rounded-full", riskColor(c.risk_level ?? null))} />
-                </Link>
+                </button>
               );
             })}
           </div>

@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 
 import Feed from "@/components/post/Feed";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -136,11 +137,24 @@ export default async function CommunityPage({
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-semibold text-zinc-900">
-          {typedCommunity.name ?? "Comunidad"}
-        </h1>
-        <div className="text-sm text-zinc-600">/c/{slug}</div>
+      <div className="rounded-lg border border-zinc-200 bg-white p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h1 className="text-xl font-semibold text-zinc-900">
+              {typedCommunity.name ?? "Comunidad"}
+            </h1>
+            <div className="mt-1 text-sm text-zinc-600">/c/{slug}</div>
+            <div className="mt-1 text-xs text-zinc-500">
+              {(typedCommunity.member_count ?? 0).toLocaleString()} miembros
+            </div>
+          </div>
+          <Link
+            href={`/post/new?community=${encodeURIComponent(typedCommunity.id)}`}
+            className="inline-flex h-10 items-center justify-center rounded-md bg-zinc-900 px-4 text-sm font-medium text-white hover:bg-zinc-800"
+          >
+            Crear post
+          </Link>
+        </div>
       </div>
       <Feed
         initialPosts={basePosts as unknown as FeedPost[]}

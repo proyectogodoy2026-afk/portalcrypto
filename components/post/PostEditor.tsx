@@ -37,14 +37,20 @@ const beginnerSchema = z.object({
   }),
 });
 
-export default function PostEditor({ communities }: { communities: CommunityOption[] }) {
+export default function PostEditor({
+  communities,
+  defaultCommunityId,
+}: {
+  communities: CommunityOption[];
+  defaultCommunityId?: string | null;
+}) {
   const router = useRouter();
   const { profile, loading } = useAuth();
 
   const mode = profile?.preferred_mode === "advanced" ? "advanced" : "beginner";
 
   const [title, setTitle] = React.useState("");
-  const [communityId, setCommunityId] = React.useState("");
+  const [communityId, setCommunityId] = React.useState(defaultCommunityId ?? "");
   const [type, setType] = React.useState("texto");
   const [tag, setTag] = React.useState<string>("");
   const [risk, setRisk] = React.useState<"bajo" | "medio" | "alto" | "">("");
@@ -63,6 +69,21 @@ export default function PostEditor({ communities }: { communities: CommunityOpti
   const topCommunities = React.useMemo(
     () => communities.slice().sort((a, b) => (b.member_count ?? 0) - (a.member_count ?? 0)).slice(0, 5),
     [communities],
+  );
+
+  const communitySelect = (
+    <select
+      className="h-10 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-900"
+      value={communityId}
+      onChange={(e) => setCommunityId(e.target.value)}
+    >
+      <option value="">Seleccioná una comunidad</option>
+      {communities.map((c) => (
+        <option key={c.id} value={c.id}>
+          {c.name} (/c/{c.slug})
+        </option>
+      ))}
+    </select>
   );
 
   async function onSubmit(e: React.FormEvent) {
@@ -160,39 +181,31 @@ export default function PostEditor({ communities }: { communities: CommunityOpti
         <div className="space-y-1">
           <Label>Comunidad</Label>
           {mode === "beginner" ? (
-            <div className="grid gap-2 sm:grid-cols-2">
-              {topCommunities.map((c) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  onClick={() => setCommunityId(c.id)}
-                  className={cn(
-                    "rounded-md border px-3 py-2 text-left text-sm",
-                    communityId === c.id
-                      ? "border-zinc-900 bg-zinc-900 text-white"
-                      : "border-zinc-200 bg-white text-zinc-900 hover:bg-zinc-50",
-                  )}
-                >
-                  <div className="font-medium">{c.name}</div>
-                  <div className={cn("mt-1 text-xs", communityId === c.id ? "text-white/70" : "text-zinc-500")}>
-                    /c/{c.slug}
-                  </div>
-                </button>
-              ))}
+            <div className="space-y-2">
+              <div className="grid gap-2 sm:grid-cols-2">
+                {topCommunities.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => setCommunityId(c.id)}
+                    className={cn(
+                      "rounded-md border px-3 py-2 text-left text-sm",
+                      communityId === c.id
+                        ? "border-zinc-900 bg-zinc-900 text-white"
+                        : "border-zinc-200 bg-white text-zinc-900 hover:bg-zinc-50",
+                    )}
+                  >
+                    <div className="font-medium">{c.name}</div>
+                    <div className={cn("mt-1 text-xs", communityId === c.id ? "text-white/70" : "text-zinc-500")}>
+                      /c/{c.slug}
+                    </div>
+                  </button>
+                ))}
+              </div>
+              {communitySelect}
             </div>
           ) : (
-            <select
-              className="h-10 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-900"
-              value={communityId}
-              onChange={(e) => setCommunityId(e.target.value)}
-            >
-              <option value="">Seleccioná una comunidad</option>
-              {communities.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name} (/c/{c.slug})
-                </option>
-              ))}
-            </select>
+            communitySelect
           )}
         </div>
 
