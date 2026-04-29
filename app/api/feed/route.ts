@@ -28,7 +28,7 @@ export async function GET(req: Request) {
     const { data: community } = await supabase
       .from("communities")
       .select("id")
-      .eq("slug", communitySlug)
+      .ilike("slug", communitySlug)
       .maybeSingle();
 
     communityId = community?.id ?? null;

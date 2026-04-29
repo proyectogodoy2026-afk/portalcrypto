@@ -1,8 +1,8 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useRouter } from "next/navigation";
 
 import { cn } from "@/lib/utils/cn";
 import type { Database } from "@/lib/supabase/types";
@@ -54,7 +54,6 @@ function groupCommunities(communities: Community[]) {
 
 export default function CommunityList({ communities }: { communities: Community[] }) {
   const pathname = usePathname();
-  const router = useRouter();
   const groups = groupCommunities(communities);
 
   return (
@@ -69,22 +68,11 @@ export default function CommunityList({ communities }: { communities: Community[
               const href = c.slug ? `/c/${c.slug}` : "/";
               const active = pathname === href || pathname.startsWith(`${href}/`);
               return (
-                <button
+                <Link
                   key={c.id}
-                  type="button"
-                  onClick={() => {
-                    const before =
-                      typeof window !== "undefined" ? window.location.pathname : null;
-                    router.push(href);
-                    if (typeof window === "undefined") return;
-                    window.setTimeout(() => {
-                      if (!before) return;
-                      if (window.location.pathname !== before) return;
-                      window.location.assign(href);
-                    }, 200);
-                  }}
+                  href={href}
                   className={cn(
-                    "flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm",
+                    "flex w-full items-center gap-2 rounded-md px-2 py-2 text-sm",
                     active
                       ? "bg-zinc-900 text-white"
                       : "text-zinc-900 hover:bg-zinc-100",
@@ -116,7 +104,7 @@ export default function CommunityList({ communities }: { communities: Community[
                     </div>
                   </div>
                   <div className={cn("h-2.5 w-2.5 rounded-full", riskColor(c.risk_level ?? null))} />
-                </button>
+                </Link>
               );
             })}
           </div>

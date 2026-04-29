@@ -1,4 +1,4 @@
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 
 import Feed from "@/components/post/Feed";
@@ -40,7 +40,7 @@ export default async function CommunityPage({
   const { data: community } = await supabase
     .from("communities")
     .select("id,name,slug,type,member_count")
-    .eq("slug", slug)
+    .ilike("slug", slug.trim())
     .maybeSingle();
 
   const typedCommunity = community as unknown as Pick<
@@ -49,7 +49,7 @@ export default async function CommunityPage({
   > | null;
 
   if (!typedCommunity) {
-    redirect("/");
+    notFound();
   }
 
   const { data: initialPosts } = await supabase
