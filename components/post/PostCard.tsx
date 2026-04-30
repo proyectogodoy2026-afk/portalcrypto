@@ -20,6 +20,7 @@ export type FeedPost = {
   content?: string | null;
   tag: string | null;
   type: string | null;
+  url?: string | null;
   risk_indicator: string | null;
   what_happened?: string | null;
   why_it_matters?: string | null;
@@ -85,6 +86,136 @@ function simpleSummary(value: string) {
   return short;
 }
 
+function safeUrl(value: string | null | undefined): string | null {
+  const raw = (value ?? "").trim();
+  if (!raw) return null;
+  try {
+    const u = new URL(raw);
+    if (u.protocol !== "https:" && u.protocol !== "http:") return null;
+    return u.toString();
+  } catch {
+    return null;
+  }
+}
+
+function isImageUrl(value: string) {
+  try {
+    const u = new URL(value);
+    const path = u.pathname.toLowerCase();
+    return (
+      path.endsWith(".png") ||
+      path.endsWith(".jpg") ||
+      path.endsWith(".jpeg") ||
+      path.endsWith(".gif") ||
+      path.endsWith(".webp")
+    );
+  } catch {
+    return false;
+  }
+}
+
+function getYoutubeId(value: string): string | null {
+  try {
+    const u = new URL(value);
+    const host = u.hostname.toLowerCase();
+    if (host === "youtu.be") {
+      const id = u.pathname.replace("/", "").trim();
+      return id || null;
+    }
+    if (host.endsWith("youtube.com")) {
+      const v = u.searchParams.get("v");
+      if (v?.trim()) return v.trim();
+      const parts = u.pathname.split("/").filter(Boolean);
+      const shortsIdx = parts.indexOf("shorts");
+      if (shortsIdx >= 0 && parts[shortsIdx + 1]) return parts[shortsIdx + 1]!;
+      const embedIdx = parts.indexOf("embed");
+      if (embedIdx >= 0 && parts[embedIdx + 1]) return parts[embedIdx + 1]!;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function isTwitterStatusUrl(value: string) {
+  try {
+    const u = new URL(value);
+    const host = u.hostname.toLowerCase();
+    if (!(host.endsWith("twitter.com") || host.endsWith("x.com"))) return false;
+    const parts = u.pathname.split("/").filter(Boolean);
+    return parts.includes("status");
+  } catch {
+    return false;
+  }
+}
+
+function renderMedia(url: string) {
+  const yt = getYoutubeId(url);
+  if (yt) {
+    const src = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(
+      yt,
+    )}`;
+    return (
+      <div className="mt-3 overflow-hidden rounded-md border border-zinc-200 bg-zinc-50">
+        <div className="relative w-full" style={{ paddingTop: "56.25%" }}>
+          <iframe
+            src={src}
+            title="YouTube"
+            className="absolute inset-0 h-full w-full"
+            loading="lazy"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            referrerPolicy="strict-origin-when-cross-origin"
+            sandbox="allow-scripts allow-same-origin allow-presentation"
+          />
+        </div>
+      </div>
+    );
+  }
+
+  if (isTwitterStatusUrl(url)) {
+    const src = `https://twitframe.com/show?url=${encodeURIComponent(url)}`;
+    return (
+      <div className="mt-3 overflow-hidden rounded-md border border-zinc-200 bg-zinc-50">
+        <iframe
+          src={src}
+          title="X"
+          className="h-[520px] w-full"
+          loading="lazy"
+          referrerPolicy="strict-origin-when-cross-origin"
+          sandbox="allow-scripts allow-same-origin allow-popups"
+        />
+      </div>
+    );
+  }
+
+  if (isImageUrl(url)) {
+    return (
+      <div className="mt-3 overflow-hidden rounded-md border border-zinc-200 bg-zinc-50">
+        <img
+          src={url}
+          alt=""
+          className="max-h-[520px] w-full object-contain"
+          loading="lazy"
+          referrerPolicy="no-referrer"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-3">
+      <a
+        href={url}
+        target="_blank"
+        rel="noreferrer"
+        className="inline-flex items-center rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-900 hover:bg-zinc-50"
+      >
+        Abrir enlace
+      </a>
+    </div>
+  );
+}
+
 function escapeRegex(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -148,6 +279,7 @@ export default function PostCard({
           priceAtPost={post.price_at_post ?? null}
         />
       ) : null}
+      {safeUrl(post.url) ? renderMedia(safeUrl(post.url)!) : null}
 
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">

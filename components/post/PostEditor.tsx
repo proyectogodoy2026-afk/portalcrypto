@@ -287,12 +287,23 @@ export default function PostEditor({
               </select>
             </div>
 
-            {type === "link" ? (
-              <div className="space-y-1">
-                <Label>Link</Label>
-                <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://..." />
-              </div>
-            ) : null}
+            <div className="space-y-1">
+              <Label>{type === "link" ? "Link" : "Adjunto (opcional)"}</Label>
+              <Input
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                placeholder={
+                  type === "link"
+                    ? "https://..."
+                    : "URL de imagen, YouTube o X (Twitter)"
+                }
+              />
+              {type === "link" ? null : (
+                <div className="text-xs text-zinc-500">
+                  Pegá un link (ej: imagen .png/.jpg, YouTube o un tweet). Se mostrará embebido en el post.
+                </div>
+              )}
+            </div>
 
             <div className="space-y-1">
               <Label>Contenido (markdown básico)</Label>
