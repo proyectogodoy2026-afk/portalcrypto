@@ -106,6 +106,12 @@ export default async function Sidebar({
     <aside className="sticky top-16 hidden h-[calc(100dvh-4rem)] w-80 shrink-0 overflow-auto pr-2 xl:block">
       <div className="space-y-4">
         {preferredMode === "beginner" ? <OnboardingChecklist initialStep={onboardingStep} /> : null}
+        <Link
+          href="/post/new"
+          className="inline-flex h-10 w-full items-center justify-center rounded-lg bg-zinc-900 px-4 text-sm font-bold text-white hover:bg-zinc-800"
+        >
+          Crear Post
+        </Link>
         <TrendingWidget />
         <div className="rounded-lg border border-zinc-200 bg-white p-3">
           <div className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-500">
