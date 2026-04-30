@@ -22,6 +22,134 @@ export type CommunityOption = {
 
 type TokenResult = { id: string; name: string; symbol: string; thumb: string };
 
+function safeUrl(value: string) {
+  const raw = value.trim();
+  if (!raw) return null;
+  try {
+    const u = new URL(raw);
+    if (u.protocol !== "https:" && u.protocol !== "http:") return null;
+    return u.toString();
+  } catch {
+    return null;
+  }
+}
+
+function isImageUrl(value: string) {
+  try {
+    const u = new URL(value);
+    const path = u.pathname.toLowerCase();
+    return (
+      path.endsWith(".png") ||
+      path.endsWith(".jpg") ||
+      path.endsWith(".jpeg") ||
+      path.endsWith(".gif") ||
+      path.endsWith(".webp")
+    );
+  } catch {
+    return false;
+  }
+}
+
+function getYoutubeId(value: string): string | null {
+  try {
+    const u = new URL(value);
+    const host = u.hostname.toLowerCase();
+    if (host === "youtu.be") {
+      const id = u.pathname.replace("/", "").trim();
+      return id || null;
+    }
+    if (host.endsWith("youtube.com")) {
+      const v = u.searchParams.get("v");
+      if (v?.trim()) return v.trim();
+      const parts = u.pathname.split("/").filter(Boolean);
+      const shortsIdx = parts.indexOf("shorts");
+      if (shortsIdx >= 0 && parts[shortsIdx + 1]) return parts[shortsIdx + 1]!;
+      const embedIdx = parts.indexOf("embed");
+      if (embedIdx >= 0 && parts[embedIdx + 1]) return parts[embedIdx + 1]!;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function isTwitterStatusUrl(value: string) {
+  try {
+    const u = new URL(value);
+    const host = u.hostname.toLowerCase();
+    if (!(host.endsWith("twitter.com") || host.endsWith("x.com"))) return false;
+    const parts = u.pathname.split("/").filter(Boolean);
+    return parts.includes("status");
+  } catch {
+    return false;
+  }
+}
+
+function renderEmbedPreview(url: string) {
+  const yt = getYoutubeId(url);
+  if (yt) {
+    const src = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(yt)}`;
+    return (
+      <div className="overflow-hidden rounded-md border border-zinc-200 bg-zinc-50">
+        <div className="relative w-full" style={{ paddingTop: "56.25%" }}>
+          <iframe
+            src={src}
+            title="YouTube"
+            className="absolute inset-0 h-full w-full"
+            loading="lazy"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            referrerPolicy="strict-origin-when-cross-origin"
+            sandbox="allow-scripts allow-same-origin allow-presentation"
+          />
+        </div>
+      </div>
+    );
+  }
+
+  if (isTwitterStatusUrl(url)) {
+    const src = `https://twitframe.com/show?url=${encodeURIComponent(url)}`;
+    return (
+      <div className="overflow-hidden rounded-md border border-zinc-200 bg-zinc-50">
+        <iframe
+          src={src}
+          title="X"
+          className="h-[520px] w-full"
+          loading="lazy"
+          referrerPolicy="strict-origin-when-cross-origin"
+          sandbox="allow-scripts allow-same-origin allow-popups"
+        />
+      </div>
+    );
+  }
+
+  if (isImageUrl(url)) {
+    return (
+      <div className="overflow-hidden rounded-md border border-zinc-200 bg-zinc-50">
+        <img
+          src={url}
+          alt=""
+          className="max-h-[520px] w-full object-contain"
+          loading="lazy"
+          referrerPolicy="no-referrer"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <a
+        href={url}
+        target="_blank"
+        rel="noreferrer"
+        className="inline-flex items-center rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-900 hover:bg-zinc-50"
+      >
+        Abrir enlace
+      </a>
+    </div>
+  );
+}
+
 const advancedSchema = z.object({
   title: z.string().min(10, "El título debe tener al menos 10 caracteres").max(300),
   community_id: z.string().min(1, "Seleccioná una comunidad"),
@@ -59,6 +187,9 @@ export default function PostEditor({
   const [tag, setTag] = React.useState<string>("");
   const [risk, setRisk] = React.useState<"bajo" | "medio" | "alto" | "">("");
   const [url, setUrl] = React.useState("");
+  const [imageUrl, setImageUrl] = React.useState("");
+  const [embedUrl, setEmbedUrl] = React.useState("");
+  const [localImagePreviewUrl, setLocalImagePreviewUrl] = React.useState<string | null>(null);
   const [content, setContent] = React.useState("");
   const [uploadingImage, setUploadingImage] = React.useState(false);
 
@@ -72,6 +203,12 @@ export default function PostEditor({
 
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    return () => {
+      if (localImagePreviewUrl) URL.revokeObjectURL(localImagePreviewUrl);
+    };
+  }, [localImagePreviewUrl]);
 
   async function onPickImage(file: File | null) {
     setError(null);
@@ -89,6 +226,12 @@ export default function PostEditor({
       return;
     }
 
+    if (localImagePreviewUrl) URL.revokeObjectURL(localImagePreviewUrl);
+    setLocalImagePreviewUrl(URL.createObjectURL(file));
+    setEmbedUrl("");
+    setImageUrl("");
+    setUrl("");
+
     const cleanedName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
     const id = typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : String(Date.now());
     const path = `posts/${user.id}/${id}-${cleanedName}`;
@@ -105,7 +248,9 @@ export default function PostEditor({
         setError("No tenés permisos para subir imágenes. Revisá las policies del bucket.");
         return;
       }
-      setError("No pudimos subir la imagen. Intentá de nuevo.");
+      setError(
+        `No pudimos subir la imagen. ${uploadError.message ?? "Intentá de nuevo."}`.trim(),
+      );
       return;
     }
 
@@ -115,6 +260,7 @@ export default function PostEditor({
       setError("Subimos la imagen pero no pudimos obtener la URL pública.");
       return;
     }
+    setImageUrl(publicUrl);
     setUrl(publicUrl);
   }
 
@@ -336,43 +482,88 @@ export default function PostEditor({
             </div>
 
             <div className="space-y-1">
-              <Label>{type === "link" ? "Link" : "Adjunto (opcional)"}</Label>
-              <div className="space-y-2">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                  <Input
-                    type="file"
-                    accept="image/*"
-                    disabled={uploadingImage}
-                    onChange={(e) => {
-                      const f = e.target.files?.[0] ?? null;
-                      void onPickImage(f);
-                      e.currentTarget.value = "";
-                    }}
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={!url || uploadingImage}
-                    onClick={() => setUrl("")}
-                  >
-                    Quitar
-                  </Button>
+              <Label>Adjunto (opcional)</Label>
+              <div className="space-y-4 rounded-md border border-zinc-200 bg-white p-3">
+                <div className="space-y-2">
+                  <div className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+                    Imagen
+                  </div>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      disabled={uploadingImage}
+                      onChange={(e) => {
+                        const f = e.target.files?.[0] ?? null;
+                        void onPickImage(f);
+                        e.currentTarget.value = "";
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={(!imageUrl && !localImagePreviewUrl) || uploadingImage}
+                      onClick={() => {
+                        if (localImagePreviewUrl) URL.revokeObjectURL(localImagePreviewUrl);
+                        setLocalImagePreviewUrl(null);
+                        setImageUrl("");
+                        if (url === imageUrl) setUrl("");
+                      }}
+                    >
+                      Quitar
+                    </Button>
+                  </div>
+
+                  {localImagePreviewUrl || imageUrl ? (
+                    <div className="overflow-hidden rounded-md border border-zinc-200 bg-zinc-50">
+                      <img
+                        src={imageUrl || localImagePreviewUrl!}
+                        alt=""
+                        className="max-h-[420px] w-full object-contain"
+                        loading="lazy"
+                        referrerPolicy="no-referrer"
+                      />
+                    </div>
+                  ) : null}
                 </div>
-                <Input
-                  value={url}
-                  onChange={(e) => setUrl(e.target.value)}
-                  placeholder={
-                    type === "link"
-                      ? "https://..."
-                      : "URL de imagen, YouTube o X (Twitter)"
-                  }
-                />
+
+                <div className="h-px bg-zinc-200" />
+
+                <div className="space-y-2">
+                  <div className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+                    YouTube o Tweet
+                  </div>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <Input
+                      value={embedUrl}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setEmbedUrl(v);
+                        setUrl(v);
+                        if (imageUrl || localImagePreviewUrl) {
+                          if (localImagePreviewUrl) URL.revokeObjectURL(localImagePreviewUrl);
+                          setLocalImagePreviewUrl(null);
+                          setImageUrl("");
+                        }
+                      }}
+                      placeholder={type === "link" ? "https://..." : "Pegá un link de YouTube o X (Twitter)"}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={!embedUrl.trim()}
+                      onClick={() => {
+                        setEmbedUrl("");
+                        if (url === embedUrl) setUrl("");
+                      }}
+                    >
+                      Quitar
+                    </Button>
+                  </div>
+
+                  {safeUrl(embedUrl) ? renderEmbedPreview(safeUrl(embedUrl)!) : null}
+                </div>
               </div>
-              {type === "link" ? null : (
-                <div className="text-xs text-zinc-500">
-                  Pegá un link (ej: imagen .png/.jpg, YouTube o un tweet). Se mostrará embebido en el post.
-                </div>
-              )}
             </div>
 
             <div className="space-y-1">
