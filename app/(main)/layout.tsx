@@ -14,11 +14,10 @@ export default function MainLayout({
       <div className="min-h-screen bg-zinc-50">
         <Header />
         <div className="mx-auto flex w-full max-w-6xl gap-6 px-4 py-6">
-          <Sidebar variant="left" />
+          <Sidebar variant="right" />
           <main className="min-w-0 flex-1">
             <div className="mx-auto w-full max-w-3xl">{children}</div>
           </main>
-          <Sidebar variant="right" />
         </div>
       </div>
     </AuthProvider>

@@ -103,7 +103,7 @@ export default async function Sidebar({
     : baseCommunities;
 
   return (
-    <aside className="sticky top-16 hidden h-[calc(100dvh-4rem)] w-80 shrink-0 overflow-auto pl-2 xl:block">
+    <aside className="sticky top-16 hidden h-[calc(100dvh-4rem)] w-80 shrink-0 overflow-auto pr-2 xl:block">
       <div className="space-y-4">
         {preferredMode === "beginner" ? <OnboardingChecklist initialStep={onboardingStep} /> : null}
         <TrendingWidget />
