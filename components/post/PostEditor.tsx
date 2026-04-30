@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils/cn";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 export type CommunityOption = {
   id: string;
@@ -47,7 +48,8 @@ export default function PostEditor({
   defaultAnchoredCoin?: TokenResult | null;
 }) {
   const router = useRouter();
-  const { profile, loading } = useAuth();
+  const { profile, loading, user } = useAuth();
+  const supabase = React.useMemo(() => createSupabaseBrowserClient(), []);
 
   const mode = profile?.preferred_mode === "advanced" ? "advanced" : "beginner";
 
@@ -58,6 +60,7 @@ export default function PostEditor({
   const [risk, setRisk] = React.useState<"bajo" | "medio" | "alto" | "">("");
   const [url, setUrl] = React.useState("");
   const [content, setContent] = React.useState("");
+  const [uploadingImage, setUploadingImage] = React.useState(false);
 
   const [whatHappened, setWhatHappened] = React.useState("");
   const [whyItMatters, setWhyItMatters] = React.useState("");
@@ -69,6 +72,51 @@ export default function PostEditor({
 
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+
+  async function onPickImage(file: File | null) {
+    setError(null);
+    if (!file) return;
+    if (!user) {
+      setError("Tenés que iniciar sesión para subir una imagen.");
+      return;
+    }
+    if (!file.type.startsWith("image/")) {
+      setError("Seleccioná un archivo de imagen.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setError("La imagen supera 5MB.");
+      return;
+    }
+
+    const cleanedName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const id = typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : String(Date.now());
+    const path = `posts/${user.id}/${id}-${cleanedName}`;
+
+    setUploadingImage(true);
+    const { error: uploadError } = await supabase.storage
+      .from("portalimagenes")
+      .upload(path, file, { upsert: false, contentType: file.type });
+    setUploadingImage(false);
+
+    if (uploadError) {
+      const msg = (uploadError.message ?? "").toLowerCase();
+      if (msg.includes("permission") || msg.includes("not authorized") || msg.includes("unauthorized")) {
+        setError("No tenés permisos para subir imágenes. Revisá las policies del bucket.");
+        return;
+      }
+      setError("No pudimos subir la imagen. Intentá de nuevo.");
+      return;
+    }
+
+    const { data } = supabase.storage.from("portalimagenes").getPublicUrl(path);
+    const publicUrl = data?.publicUrl ?? "";
+    if (!publicUrl) {
+      setError("Subimos la imagen pero no pudimos obtener la URL pública.");
+      return;
+    }
+    setUrl(publicUrl);
+  }
 
   const topCommunities = React.useMemo(
     () => communities.slice().sort((a, b) => (b.member_count ?? 0) - (a.member_count ?? 0)).slice(0, 5),
@@ -289,15 +337,37 @@ export default function PostEditor({
 
             <div className="space-y-1">
               <Label>{type === "link" ? "Link" : "Adjunto (opcional)"}</Label>
-              <Input
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                placeholder={
-                  type === "link"
-                    ? "https://..."
-                    : "URL de imagen, YouTube o X (Twitter)"
-                }
-              />
+              <div className="space-y-2">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    disabled={uploadingImage}
+                    onChange={(e) => {
+                      const f = e.target.files?.[0] ?? null;
+                      void onPickImage(f);
+                      e.currentTarget.value = "";
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={!url || uploadingImage}
+                    onClick={() => setUrl("")}
+                  >
+                    Quitar
+                  </Button>
+                </div>
+                <Input
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  placeholder={
+                    type === "link"
+                      ? "https://..."
+                      : "URL de imagen, YouTube o X (Twitter)"
+                  }
+                />
+              </div>
               {type === "link" ? null : (
                 <div className="text-xs text-zinc-500">
                   Pegá un link (ej: imagen .png/.jpg, YouTube o un tweet). Se mostrará embebido en el post.
