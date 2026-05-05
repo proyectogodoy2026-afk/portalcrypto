@@ -1,4 +1,5 @@
 import { createServerClient } from "@supabase/ssr";
+import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 
 import type { Database } from "./types";
@@ -46,6 +47,22 @@ export async function createSupabaseRouteClient() {
           cookieStore.set(c.name, c.value, c.options);
         }
       },
+    },
+  });
+}
+
+export function createSupabaseAdminClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL;
+  const serviceRoleKey = process.env.SERVICE_ROLE_KEY;
+  if (!url || !serviceRoleKey) {
+    throw new Error("Faltan variables de entorno de Supabase (URL/SERVICE_ROLE_KEY)");
+  }
+
+  return createClient<Database>(url, serviceRoleKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
     },
   });
 }

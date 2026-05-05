@@ -41,6 +41,7 @@ export default async function CommunityPage({
   const { data: community } = await supabase
     .from("communities")
     .select("id,name,slug,type,member_count")
+    .eq("status", "approved")
     .eq("slug", slugRaw)
     .maybeSingle();
 
@@ -48,6 +49,7 @@ export default async function CommunityPage({
     ? await supabase
         .from("communities")
         .select("id,name,slug,type,member_count")
+        .eq("status", "approved")
         .eq("slug", slugRaw.toLowerCase())
         .maybeSingle()
     : { data: null };
@@ -56,6 +58,7 @@ export default async function CommunityPage({
     ? await supabase
         .from("communities")
         .select("id,name,slug,type,member_count")
+        .eq("status", "approved")
         .ilike("slug", slugRaw)
         .maybeSingle()
     : { data: null };

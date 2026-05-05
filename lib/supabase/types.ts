@@ -61,6 +61,12 @@ export type Database = {
           member_count: number | null;
           icon_url: string | null;
           risk_level: string | null;
+          status?: string | null;
+          requested_reason?: string | null;
+          requested_by?: string | null;
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
+          reviewed_note?: string | null;
           created_at: string | null;
         };
         Insert: {
@@ -71,6 +77,12 @@ export type Database = {
           member_count?: number | null;
           icon_url?: string | null;
           risk_level?: string | null;
+          status?: string | null;
+          requested_reason?: string | null;
+          requested_by?: string | null;
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
+          reviewed_note?: string | null;
           created_at?: string | null;
         };
         Update: {
@@ -81,6 +93,12 @@ export type Database = {
           member_count?: number | null;
           icon_url?: string | null;
           risk_level?: string | null;
+          status?: string | null;
+          requested_reason?: string | null;
+          requested_by?: string | null;
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
+          reviewed_note?: string | null;
           created_at?: string | null;
         };
         Relationships: GenericRelationship[];
@@ -103,6 +121,7 @@ export type Database = {
           predictions_correct?: number | null;
           predictions_total?: number | null;
           is_moderator?: boolean | null;
+          is_admin?: boolean | null;
           followed_tokens?: string[] | null;
           followed_communities?: string[] | null;
           notify_comment_replies?: boolean | null;
@@ -128,6 +147,7 @@ export type Database = {
           predictions_correct?: number | null;
           predictions_total?: number | null;
           is_moderator?: boolean | null;
+          is_admin?: boolean | null;
           followed_tokens?: string[] | null;
           followed_communities?: string[] | null;
           notify_comment_replies?: boolean | null;
@@ -153,6 +173,7 @@ export type Database = {
           predictions_correct?: number | null;
           predictions_total?: number | null;
           is_moderator?: boolean | null;
+          is_admin?: boolean | null;
           followed_tokens?: string[] | null;
           followed_communities?: string[] | null;
           notify_comment_replies?: boolean | null;

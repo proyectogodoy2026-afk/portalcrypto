@@ -34,6 +34,7 @@ export default async function NewPostPage({
   const { data: communities } = await supabase
     .from("communities")
     .select("id,name,slug,type,member_count")
+    .eq("status", "approved")
     .order("member_count", { ascending: false, nullsFirst: false });
 
   const defaultCommunityId = (searchParams.community ?? "").trim() || null;

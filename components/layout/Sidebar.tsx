@@ -82,6 +82,7 @@ export default async function Sidebar({
   const { data } = await supabase
     .from("communities")
     .select("id,name,slug,type,member_count,icon_url,risk_level,created_at")
+    .eq("status", "approved")
     .order("member_count", { ascending: false, nullsFirst: false });
 
   const baseCommunities = (data ?? []) as unknown as Array<{
@@ -118,6 +119,12 @@ export default async function Sidebar({
             Comunidades
           </div>
           <CommunityList communities={communities} />
+          <Link
+            href="/community/new"
+            className="mt-3 inline-flex h-10 w-full items-center justify-center rounded-md border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-900 hover:bg-zinc-50"
+          >
+            Crear comunidad
+          </Link>
         </div>
       </div>
     </aside>

@@ -99,6 +99,7 @@ export default async function FeedPage() {
     const { data: beginnerCommunity } = await supabase
       .from("communities")
       .select("id")
+      .eq("status", "approved")
       .eq("slug", "beginners")
       .maybeSingle();
 

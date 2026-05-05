@@ -237,11 +237,7 @@ export default function PostCard({
   const tag = post.tag?.trim() ? post.tag : null;
   const [simple, setSimple] = React.useState(false);
   const [showInlineComments, setShowInlineComments] = React.useState(false);
-  const [commentCount, setCommentCount] = React.useState(post.comment_count ?? 0);
-
-  React.useEffect(() => {
-    setCommentCount(post.comment_count ?? 0);
-  }, [post.comment_count]);
+  const [inlineCommentCount, setInlineCommentCount] = React.useState<number | null>(null);
 
   const terms = React.useMemo(
     () =>
@@ -335,7 +331,9 @@ export default function PostCard({
           }}
           className="rounded-md px-1 text-xs font-medium text-zinc-700 underline-offset-4 hover:underline"
         >
-          {showInlineComments ? "Ocultar comentarios" : `Ver y comentar (${commentCount})`}
+          {showInlineComments
+            ? "Ocultar comentarios"
+            : `Ver y comentar (${inlineCommentCount ?? (post.comment_count ?? 0)})`}
         </button>
         <button
           type="button"
@@ -427,7 +425,7 @@ export default function PostCard({
             postId={post.id}
             comments={[]}
             variant="inline"
-            onCountChange={(n) => setCommentCount(n)}
+            onCountChange={(n) => setInlineCommentCount(n)}
           />
         </div>
       ) : null}

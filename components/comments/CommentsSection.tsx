@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
+import useSWR from "swr";
 
 import ScamReportButton from "@/components/scam/ScamReportButton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -55,17 +56,9 @@ export default function CommentsSection({
   const { user, profile } = useAuth();
 
   const [nowMs, setNowMs] = React.useState<number | null>(null);
-  const [items, setItems] = React.useState<CommentRow[]>(comments);
-  const [loading, setLoading] = React.useState(false);
   const [content, setContent] = React.useState("");
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
-
-  React.useEffect(() => {
-    if (variant === "page") {
-      setItems(comments);
-    }
-  }, [comments, variant]);
 
   React.useEffect(() => {
     const immediate = window.setTimeout(() => setNowMs(Date.now()), 0);
@@ -76,9 +69,7 @@ export default function CommentsSection({
     };
   }, []);
 
-  const loadComments = React.useCallback(async () => {
-    setError(null);
-    setLoading(true);
+  const loadInline = React.useCallback(async () => {
     const { data, error: fetchError } = await supabase
       .from("comments")
       .select("id,author_id,content,created_at,profiles ( username, avatar_url )")
@@ -87,21 +78,26 @@ export default function CommentsSection({
       .order("created_at", { ascending: true, nullsFirst: false })
       .limit(100);
 
-    setLoading(false);
-
     if (fetchError) {
-      setError(`No pudimos cargar los comentarios: ${fetchError.message}`);
-      return;
+      throw new Error(fetchError.message ?? "No pudimos cargar los comentarios.");
     }
 
-    setItems((data ?? []) as unknown as CommentRow[]);
-    onCountChange?.((data ?? []).length);
-  }, [onCountChange, postId, supabase]);
+    return (data ?? []) as unknown as CommentRow[];
+  }, [postId, supabase]);
+
+  const inlineSWR = useSWR<CommentRow[]>(
+    variant === "inline" ? ["comments", postId] : null,
+    loadInline,
+  );
+
+  const items = variant === "page" ? comments : inlineSWR.data ?? [];
+  const loading = variant === "inline" ? inlineSWR.isLoading : false;
+  const fetchErrorMessage =
+    variant === "inline" ? (inlineSWR.error as Error | undefined)?.message ?? null : null;
 
   React.useEffect(() => {
-    if (variant !== "inline") return;
-    void loadComments();
-  }, [loadComments, variant]);
+    onCountChange?.(items.length);
+  }, [items.length, onCountChange]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -123,10 +119,11 @@ export default function CommentsSection({
       created_at: new Date().toISOString(),
       profiles: { username: profile?.username ?? null, avatar_url: profile?.avatar_url ?? null },
     };
-    setItems((prev) => {
-      onCountChange?.(prev.length + 1);
-      return [...prev, optimistic];
-    });
+
+    if (variant === "inline") {
+      inlineSWR.mutate([...(inlineSWR.data ?? []), optimistic], { revalidate: false });
+    }
+
     setContent("");
 
     const { error: insertError } = await supabase.from("comments").insert({
@@ -138,7 +135,12 @@ export default function CommentsSection({
     setSubmitting(false);
 
     if (insertError) {
-      setItems((prev) => prev.filter((c) => c.id !== optimistic.id));
+      if (variant === "inline") {
+        inlineSWR.mutate(
+          (current) => (current ?? []).filter((c) => c.id !== optimistic.id),
+          { revalidate: false },
+        );
+      }
       const msg = (insertError.message ?? "").toLowerCase();
       if (msg.includes("row-level security") || msg.includes("permission denied")) {
         setError("No pudimos guardar tu comentario por permisos (RLS) en la tabla comments.");
@@ -151,7 +153,7 @@ export default function CommentsSection({
     if (variant === "page") {
       router.refresh();
     } else {
-      await loadComments();
+      await inlineSWR.mutate();
     }
   }
 
@@ -182,6 +184,10 @@ export default function CommentsSection({
       {loading ? (
         <div className="rounded-lg border border-zinc-200 bg-white p-6 text-sm text-zinc-600">
           Cargando comentarios…
+        </div>
+      ) : fetchErrorMessage ? (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-6 text-sm text-red-700">
+          {fetchErrorMessage}
         </div>
       ) : items.length === 0 ? (
         <div className="rounded-lg border border-zinc-200 bg-white p-6 text-sm text-zinc-600">
