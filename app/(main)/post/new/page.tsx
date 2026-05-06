@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 
 import PostEditor from "@/components/post/PostEditor";
 import type { CommunityOption } from "@/components/post/PostEditor";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient, createSupabaseServerClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
@@ -31,13 +31,31 @@ export default async function NewPostPage({
     redirect("/onboarding");
   }
 
-  const { data: communities } = await supabase
-    .from("communities")
-    .select("id,name,slug,type,member_count")
-    .eq("status", "approved")
-    .order("member_count", { ascending: false, nullsFirst: false });
+  const admin = createSupabaseAdminClient();
+  const { data: memberships } = await admin
+    .from("community_memberships")
+    .select("community_id")
+    .eq("user_id", session.user.id)
+    .limit(5000);
 
-  const defaultCommunityId = (searchParams.community ?? "").trim() || null;
+  const communityIds = (memberships ?? [])
+    .map((m) => (m as unknown as { community_id?: string | null }).community_id ?? null)
+    .filter(Boolean) as string[];
+
+  const { data: communities } =
+    communityIds.length > 0
+      ? await admin
+          .from("communities")
+          .select("id,name,slug,type,member_count")
+          .eq("status", "approved")
+          .in("id", communityIds)
+          .order("member_count", { ascending: false, nullsFirst: false })
+      : { data: [] as unknown[] };
+
+  const requestedCommunityId = (searchParams.community ?? "").trim() || null;
+  const defaultCommunityId = requestedCommunityId && communityIds.includes(requestedCommunityId)
+    ? requestedCommunityId
+    : null;
   const coinId = (searchParams.coin ?? "").trim();
   const coinName = (searchParams.coin_name ?? "").trim();
   const coinSymbol = (searchParams.coin_symbol ?? "").trim();

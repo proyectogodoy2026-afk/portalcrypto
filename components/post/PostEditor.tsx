@@ -275,10 +275,12 @@ export default function PostEditor({
       value={communityId}
       onChange={(e) => setCommunityId(e.target.value)}
     >
-      <option value="">Seleccioná una comunidad</option>
+      <option value="">
+        {communities.length === 0 ? "Unite a una comunidad para publicar" : "Seleccioná una comunidad"}
+      </option>
       {communities.map((c) => (
         <option key={c.id} value={c.id}>
-          {c.name} (/c/{c.slug})
+          {c.name}
         </option>
       ))}
     </select>
@@ -394,9 +396,6 @@ export default function PostEditor({
                     )}
                   >
                     <div className="font-medium">{c.name}</div>
-                    <div className={cn("mt-1 text-xs", communityId === c.id ? "text-white/70" : "text-zinc-500")}>
-                      /c/{c.slug}
-                    </div>
                   </button>
                 ))}
               </div>

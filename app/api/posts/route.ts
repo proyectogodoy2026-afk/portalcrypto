@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { coingeckoFetch } from "@/lib/api/coingecko";
-import { createSupabaseRouteClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient, createSupabaseRouteClient } from "@/lib/supabase/server";
 
 const advancedSchema = z.object({
   mode: z.literal("advanced"),
@@ -79,6 +79,31 @@ export async function POST(req: Request) {
       { message: parsed.error.issues[0]?.message ?? "Datos inválidos" },
       { status: 400 },
     );
+  }
+
+  const admin = createSupabaseAdminClient();
+  const communityId = parsed.data.community_id;
+
+  const { data: community } = await admin
+    .from("communities")
+    .select("id,status")
+    .eq("id", communityId)
+    .maybeSingle();
+
+  const status = (community as unknown as { status?: string | null } | null)?.status ?? "approved";
+  if (status !== "approved") {
+    return Response.json({ message: "Esta comunidad todavía no está aprobada." }, { status: 403 });
+  }
+
+  const { data: membership } = await admin
+    .from("community_memberships")
+    .select("community_id")
+    .eq("community_id", communityId)
+    .eq("user_id", session.user.id)
+    .maybeSingle();
+
+  if (!membership) {
+    return Response.json({ message: "Tenés que unirte a la comunidad para publicar." }, { status: 403 });
   }
 
   const cutoff = new Date(Date.now() - 60 * 60 * 1000).toISOString();

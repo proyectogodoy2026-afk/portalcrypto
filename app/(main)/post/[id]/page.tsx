@@ -120,7 +120,11 @@ export default async function PostPage({
           } as unknown as FeedPost)
         }
       />
-      <CommentsSection postId={id} comments={(comments ?? []) as unknown as CommentRow[]} />
+      <CommentsSection
+        postId={id}
+        communityId={(enhanced as unknown as { community_id: string }).community_id}
+        comments={(comments ?? []) as unknown as CommentRow[]}
+      />
     </div>
   );
 }

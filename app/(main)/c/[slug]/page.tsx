@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 
 import Feed from "@/components/post/Feed";
+import CommunityActions from "@/components/community/CommunityActions";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/types";
 import type { FeedPost } from "@/components/post/PostCard";
@@ -176,17 +177,11 @@ export default async function CommunityPage({
             <h1 className="text-xl font-semibold text-zinc-900">
               {typedCommunity.name ?? "Comunidad"}
             </h1>
-            <div className="mt-1 text-sm text-zinc-600">/c/{typedCommunity.slug}</div>
             <div className="mt-1 text-xs text-zinc-500">
               {(typedCommunity.member_count ?? 0).toLocaleString()} miembros
             </div>
           </div>
-          <Link
-            href={`/post/new?community=${encodeURIComponent(typedCommunity.id)}`}
-            className="inline-flex h-10 items-center justify-center rounded-md bg-zinc-900 px-4 text-sm font-medium text-white hover:bg-zinc-800"
-          >
-            Crear post
-          </Link>
+          <CommunityActions communityId={typedCommunity.id} />
         </div>
       </div>
       <Feed

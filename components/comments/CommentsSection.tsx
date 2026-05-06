@@ -20,6 +20,15 @@ type CommentRow = {
 
 export type { CommentRow };
 
+async function fetchJson<T>(url: string) {
+  const res = await fetch(url);
+  if (!res.ok) {
+    const data = await res.json().catch(() => null);
+    throw new Error(data?.message ?? "Error al cargar");
+  }
+  return (await res.json()) as T;
+}
+
 function getInitials(value: string) {
   const cleaned = value.trim();
   if (!cleaned) return "?";
@@ -42,11 +51,13 @@ function timeAgoAt(value: string | null, nowMs: number | null) {
 
 export default function CommentsSection({
   postId,
+  communityId,
   comments,
   variant = "page",
   onCountChange,
 }: {
   postId: string;
+  communityId: string;
   comments: CommentRow[];
   variant?: "page" | "inline";
   onCountChange?: (count: number) => void;
@@ -95,6 +106,12 @@ export default function CommentsSection({
   const fetchErrorMessage =
     variant === "inline" ? (inlineSWR.error as Error | undefined)?.message ?? null : null;
 
+  const membershipSWR = useSWR<{ joined: boolean; memberCount: number }>(
+    user ? `/api/communities/membership?communityId=${encodeURIComponent(communityId)}` : null,
+    fetchJson,
+  );
+  const joined = membershipSWR.data?.joined ?? false;
+
   React.useEffect(() => {
     onCountChange?.(items.length);
   }, [items.length, onCountChange]);
@@ -107,6 +124,10 @@ export default function CommentsSection({
     if (!trimmed) return;
     if (!user) {
       setError("Necesitás iniciar sesión para comentar.");
+      return;
+    }
+    if (!joined) {
+      setError("Tenés que unirte a la comunidad para comentar.");
       return;
     }
 
@@ -126,27 +147,23 @@ export default function CommentsSection({
 
     setContent("");
 
-    const { error: insertError } = await supabase.from("comments").insert({
-      post_id: postId,
-      author_id: user.id,
-      content: trimmed,
-    } as never);
+    const res = await fetch("/api/comments", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ postId, content: trimmed }),
+    });
+    const data = await res.json().catch(() => null);
 
     setSubmitting(false);
 
-    if (insertError) {
+    if (!res.ok) {
       if (variant === "inline") {
         inlineSWR.mutate(
           (current) => (current ?? []).filter((c) => c.id !== optimistic.id),
           { revalidate: false },
         );
       }
-      const msg = (insertError.message ?? "").toLowerCase();
-      if (msg.includes("row-level security") || msg.includes("permission denied")) {
-        setError("No pudimos guardar tu comentario por permisos (RLS) en la tabla comments.");
-      } else {
-        setError(`No pudimos guardar tu comentario: ${insertError.message}`);
-      }
+      setError(data?.message ?? "No pudimos guardar tu comentario.");
       return;
     }
 
@@ -162,12 +179,40 @@ export default function CommentsSection({
       <div className="text-sm font-semibold text-zinc-900">Comentarios</div>
 
       <form onSubmit={onSubmit} className="rounded-lg border border-zinc-200 bg-white p-4">
+        {user && !membershipSWR.isLoading && !joined ? (
+          <div className="mb-3 rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-800">
+            Unite a la comunidad para poder comentar.
+            <div className="mt-2">
+              <Button
+                type="button"
+                onClick={async () => {
+                  setError(null);
+                  const res = await fetch("/api/communities/membership", {
+                    method: "POST",
+                    headers: { "content-type": "application/json" },
+                    body: JSON.stringify({ communityId, action: "join" }),
+                  });
+                  if (!res.ok) return;
+                  await membershipSWR.mutate();
+                }}
+              >
+                Unirse
+              </Button>
+            </div>
+          </div>
+        ) : null}
         <textarea
           className="min-h-24 w-full resize-y rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900"
           value={content}
           onChange={(e) => setContent(e.target.value)}
-          placeholder={user ? "Escribí tu comentario..." : "Iniciá sesión para comentar."}
-          disabled={!user || submitting}
+          placeholder={
+            !user
+              ? "Iniciá sesión para comentar."
+              : !joined
+                ? "Unite a la comunidad para comentar."
+                : "Escribí tu comentario..."
+          }
+          disabled={!user || submitting || (user && !joined)}
         />
         <div className="mt-3 flex items-center justify-end">
           <Button type="submit" disabled={!user || submitting || !content.trim()}>

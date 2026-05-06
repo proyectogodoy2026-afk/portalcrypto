@@ -184,6 +184,24 @@ export type Database = {
         };
         Relationships: GenericRelationship[];
       };
+      community_memberships: {
+        Row: {
+          user_id: string;
+          community_id: string;
+          created_at: string | null;
+        };
+        Insert: {
+          user_id: string;
+          community_id: string;
+          created_at?: string | null;
+        };
+        Update: {
+          user_id?: string;
+          community_id?: string;
+          created_at?: string | null;
+        };
+        Relationships: GenericRelationship[];
+      };
       posts: {
         Row: {
           id: string;

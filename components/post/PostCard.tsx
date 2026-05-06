@@ -278,7 +278,7 @@ export default function PostCard({
             </div>
             <span>·</span>
             {community ? (
-              <span className="font-medium text-zinc-700">/c/{community.slug}</span>
+              <span className="font-medium text-zinc-700">{community.name}</span>
             ) : (
               <span className="font-medium text-zinc-700">Comunidad</span>
             )}
@@ -423,6 +423,7 @@ export default function PostCard({
         <div className="mt-4">
           <CommentsSection
             postId={post.id}
+            communityId={post.community_id}
             comments={[]}
             variant="inline"
             onCountChange={(n) => setInlineCommentCount(n)}

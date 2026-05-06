@@ -96,6 +96,11 @@ export async function POST(req: Request) {
     return Response.json({ message: "No pudimos crear la solicitud." }, { status: 500 });
   }
 
+  await admin.from("community_memberships").insert({
+    user_id: session.user.id,
+    community_id: inserted.id,
+  } as never);
+  await admin.from("communities").update({ member_count: 1 } as never).eq("id", inserted.id);
+
   return Response.json({ ok: true, id: inserted.id, slug: inserted.slug }, { status: 200 });
 }
-
