@@ -202,6 +202,90 @@ export type Database = {
         };
         Relationships: GenericRelationship[];
       };
+      scrape_sources: {
+        Row: {
+          id: string;
+          name: string;
+          url: string;
+          default_community_id?: string | null;
+          list_container_selector: string;
+          link_selector: string;
+          content_selector: string;
+          ignore_selector: string | null;
+          is_active: boolean;
+          created_at: string | null;
+          updated_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          url: string;
+          default_community_id?: string | null;
+          list_container_selector: string;
+          link_selector: string;
+          content_selector: string;
+          ignore_selector?: string | null;
+          is_active?: boolean;
+          created_at?: string | null;
+          updated_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          url?: string;
+          default_community_id?: string | null;
+          list_container_selector?: string;
+          link_selector?: string;
+          content_selector?: string;
+          ignore_selector?: string | null;
+          is_active?: boolean;
+          created_at?: string | null;
+          updated_at?: string | null;
+        };
+        Relationships: GenericRelationship[];
+      };
+      scraped_posts: {
+        Row: {
+          id: string;
+          source_id: string;
+          url: string;
+          title: string | null;
+          content_text: string | null;
+          status: string | null;
+          fetched_at: string | null;
+          reviewed_by: string | null;
+          reviewed_at: string | null;
+          reviewed_note: string | null;
+          created_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          source_id: string;
+          url: string;
+          title?: string | null;
+          content_text?: string | null;
+          status?: string | null;
+          fetched_at?: string | null;
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
+          reviewed_note?: string | null;
+          created_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          source_id?: string;
+          url?: string;
+          title?: string | null;
+          content_text?: string | null;
+          status?: string | null;
+          fetched_at?: string | null;
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
+          reviewed_note?: string | null;
+          created_at?: string | null;
+        };
+        Relationships: GenericRelationship[];
+      };
       posts: {
         Row: {
           id: string;

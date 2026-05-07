@@ -41,6 +41,101 @@ type CoinPriceResponse = Record<
   }
 >;
 
+function isLikelyImageUrl(value: string) {
+  const v = value.toLowerCase();
+  return (
+    v.endsWith(".png") ||
+    v.endsWith(".jpg") ||
+    v.endsWith(".jpeg") ||
+    v.endsWith(".gif") ||
+    v.endsWith(".webp")
+  );
+}
+
+function isPortalImagenesUrl(value: string) {
+  try {
+    const u = new URL(value);
+    return u.pathname.includes("/storage/v1/object/public/portalimagenes/");
+  } catch {
+    return false;
+  }
+}
+
+function extractJson(text: string) {
+  const cleaned = (text ?? "").trim();
+  if (!cleaned) return null;
+  const start = cleaned.indexOf("{");
+  const end = cleaned.lastIndexOf("}");
+  if (start < 0 || end < 0 || end <= start) return null;
+  const candidate = cleaned.slice(start, end + 1);
+  try {
+    return JSON.parse(candidate) as unknown;
+  } catch {
+    return null;
+  }
+}
+
+function readChoiceContent(payload: unknown) {
+  const root = payload as { choices?: unknown } | null;
+  const choices = Array.isArray(root?.choices) ? root?.choices : [];
+  const first = (choices[0] ?? null) as { message?: unknown } | null;
+  const message = (first?.message ?? null) as { content?: unknown } | null;
+  return typeof message?.content === "string" ? message.content : "";
+}
+
+async function checkImageWithGroq(imageUrl: string) {
+  const key = process.env.GROQ_API_KEY;
+  if (!key) return { ok: false as const, message: "Moderación de imágenes no configurada." };
+
+  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${key}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "meta-llama/llama-4-scout-17b-16e-instruct",
+      temperature: 0,
+      top_p: 1,
+      max_tokens: 256,
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: [
+                "Analizá la imagen y decidí si es apta para todo público.",
+                "Bloqueá cualquier contenido sexual explícito, desnudez, pornografía o contenido +18.",
+                'Respondé SOLO con JSON con esta forma: {"allow": boolean, "reason": string, "nsfw": boolean}.',
+                "Si no estás seguro, allow=false.",
+              ].join("\n"),
+            },
+            { type: "image_url", image_url: { url: imageUrl } },
+          ],
+        },
+      ],
+    }),
+  });
+
+  const data: unknown = await res.json().catch(() => null);
+  const rawText = readChoiceContent(data);
+  if (!res.ok) return { ok: false as const, message: "No pudimos verificar la imagen." };
+
+  const json = extractJson(rawText) as
+    | { allow?: unknown; reason?: unknown; nsfw?: unknown }
+    | null;
+  const allow = json?.allow === true;
+  const nsfw = json?.nsfw === true;
+  const reason =
+    typeof json?.reason === "string" && json.reason.trim()
+      ? json.reason.trim()
+      : "Contenido no permitido.";
+
+  if (!allow || nsfw) return { ok: false as const, message: `Imagen bloqueada: ${reason}` };
+  return { ok: true as const };
+}
+
 function toDbPostType(type: "texto" | "link" | "analisis" | "noticia" | "alerta") {
   if (type === "texto") return "text";
   if (type === "analisis") return "analysis";
@@ -104,6 +199,14 @@ export async function POST(req: Request) {
 
   if (!membership) {
     return Response.json({ message: "Tenés que unirte a la comunidad para publicar." }, { status: 403 });
+  }
+
+  const postUrl = parsed.data.mode === "advanced" ? (parsed.data.url ?? null) : null;
+  if (postUrl && isLikelyImageUrl(postUrl) && isPortalImagenesUrl(postUrl)) {
+    const check = await checkImageWithGroq(postUrl);
+    if (!check.ok) {
+      return Response.json({ message: check.message }, { status: 400 });
+    }
   }
 
   const cutoff = new Date(Date.now() - 60 * 60 * 1000).toISOString();

@@ -30,6 +30,18 @@ type CommunityRow = {
   created_at: string | null;
 };
 
+type ScrapeSource = {
+  id: string;
+  name: string;
+  url: string;
+  list_container_selector: string;
+  link_selector: string;
+  content_selector: string;
+  ignore_selector: string | null;
+  is_active: boolean;
+  created_at: string | null;
+};
+
 async function fetchJson<T>(url: string) {
   const res = await fetch(url);
   if (!res.ok) {
@@ -50,12 +62,25 @@ export default function AdminDashboard({ superEmail }: { superEmail: string }) {
   const [userQuery, setUserQuery] = React.useState("");
   const [communityQuery, setCommunityQuery] = React.useState("");
   const [reviewNotes, setReviewNotes] = React.useState<Record<string, string>>({});
+  const [sourceDraft, setSourceDraft] = React.useState({
+    name: "",
+    url: "",
+    list_container_selector: "",
+    link_selector: "",
+    content_selector: "",
+    ignore_selector: "",
+    is_active: true,
+  });
   const [pending, startTransition] = React.useTransition();
   const [actionError, setActionError] = React.useState<string | null>(null);
 
   const usersSWR = useSWR<{ users: AdminUser[] }>("/api/admin/users", fetchJson);
   const communitiesSWR = useSWR<{ communities: CommunityRow[] }>(
     "/api/admin/communities",
+    fetchJson,
+  );
+  const sourcesSWR = useSWR<{ sources: ScrapeSource[] }>(
+    "/api/admin/scrape-sources",
     fetchJson,
   );
 
@@ -90,6 +115,11 @@ export default function AdminDashboard({ superEmail }: { superEmail: string }) {
   const pendingRequests = React.useMemo(
     () => communities.filter((c) => (c.status ?? "").toLowerCase() === "pending"),
     [communities],
+  );
+
+  const sources = React.useMemo(
+    () => sourcesSWR.data?.sources ?? [],
+    [sourcesSWR.data?.sources],
   );
 
   function setAdminRole(userId: string, value: boolean) {
@@ -159,6 +189,81 @@ export default function AdminDashboard({ superEmail }: { superEmail: string }) {
           return next;
         });
         await communitiesSWR.mutate();
+      })();
+    });
+  }
+
+  function createSource() {
+    setActionError(null);
+    startTransition(() => {
+      void (async () => {
+        const payload = {
+          name: sourceDraft.name.trim(),
+          url: sourceDraft.url.trim(),
+          list_container_selector: sourceDraft.list_container_selector.trim(),
+          link_selector: sourceDraft.link_selector.trim(),
+          content_selector: sourceDraft.content_selector.trim(),
+          ignore_selector: sourceDraft.ignore_selector.trim() || null,
+          is_active: Boolean(sourceDraft.is_active),
+        };
+        const res = await fetch("/api/admin/scrape-sources", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json().catch(() => null);
+        if (!res.ok) {
+          setActionError(data?.message ?? "No pudimos guardar la fuente.");
+          return;
+        }
+        setSourceDraft({
+          name: "",
+          url: "",
+          list_container_selector: "",
+          link_selector: "",
+          content_selector: "",
+          ignore_selector: "",
+          is_active: true,
+        });
+        await sourcesSWR.mutate();
+      })();
+    });
+  }
+
+  function updateSource(id: string, patch: Partial<ScrapeSource>) {
+    setActionError(null);
+    startTransition(() => {
+      void (async () => {
+        const res = await fetch(`/api/admin/scrape-sources/${encodeURIComponent(id)}`, {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(patch),
+        });
+        const data = await res.json().catch(() => null);
+        if (!res.ok) {
+          setActionError(data?.message ?? "No pudimos actualizar la fuente.");
+          return;
+        }
+        await sourcesSWR.mutate();
+      })();
+    });
+  }
+
+  function deleteSource(id: string, label: string) {
+    const ok = window.confirm(`Eliminar fuente "${label}"?`);
+    if (!ok) return;
+    setActionError(null);
+    startTransition(() => {
+      void (async () => {
+        const res = await fetch(`/api/admin/scrape-sources/${encodeURIComponent(id)}`, {
+          method: "DELETE",
+        });
+        const data = await res.json().catch(() => null);
+        if (!res.ok) {
+          setActionError(data?.message ?? "No pudimos eliminar la fuente.");
+          return;
+        }
+        await sourcesSWR.mutate();
       })();
     });
   }
@@ -239,6 +344,153 @@ export default function AdminDashboard({ superEmail }: { superEmail: string }) {
                 );
               })}
             </div>
+          </div>
+        )}
+      </div>
+
+      <div className="rounded-lg border border-zinc-200 bg-white p-4">
+        <div>
+          <div className="text-sm font-semibold text-zinc-900">Scrapping · Fuentes</div>
+          <div className="mt-1 text-xs text-zinc-600">
+            Cada fuente define selectores CSS para encontrar la lista de posts, el link al post y el
+            contenedor del contenido. Ignorar sirve para remover bloques no deseados.
+          </div>
+        </div>
+
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          <input
+            value={sourceDraft.name}
+            onChange={(e) => setSourceDraft((p) => ({ ...p, name: e.target.value }))}
+            placeholder="Nombre (ej: El Mundo)"
+            className="h-10 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-900"
+          />
+          <input
+            value={sourceDraft.url}
+            onChange={(e) => setSourceDraft((p) => ({ ...p, url: e.target.value }))}
+            placeholder="URL (https://...)"
+            className="h-10 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-900"
+          />
+          <input
+            value={sourceDraft.list_container_selector}
+            onChange={(e) => setSourceDraft((p) => ({ ...p, list_container_selector: e.target.value }))}
+            placeholder="Selector lista (ej: .news-list)"
+            className="h-10 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-900"
+          />
+          <input
+            value={sourceDraft.link_selector}
+            onChange={(e) => setSourceDraft((p) => ({ ...p, link_selector: e.target.value }))}
+            placeholder="Selector link (ej: a.headline)"
+            className="h-10 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-900"
+          />
+          <input
+            value={sourceDraft.content_selector}
+            onChange={(e) => setSourceDraft((p) => ({ ...p, content_selector: e.target.value }))}
+            placeholder="Selector contenido (ej: article .content)"
+            className="h-10 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-900"
+          />
+          <input
+            value={sourceDraft.ignore_selector}
+            onChange={(e) => setSourceDraft((p) => ({ ...p, ignore_selector: e.target.value }))}
+            placeholder="Selector ignorar (opcional)"
+            className="h-10 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-900"
+          />
+          <label className="flex items-center gap-2 text-sm text-zinc-700">
+            <input
+              type="checkbox"
+              checked={sourceDraft.is_active}
+              onChange={(e) => setSourceDraft((p) => ({ ...p, is_active: e.target.checked }))}
+            />
+            Activa
+          </label>
+          <div className="flex justify-end md:justify-start">
+            <Button
+              type="button"
+              disabled={
+                pending ||
+                !sourceDraft.name.trim() ||
+                !sourceDraft.url.trim() ||
+                !sourceDraft.list_container_selector.trim() ||
+                !sourceDraft.link_selector.trim() ||
+                !sourceDraft.content_selector.trim()
+              }
+              onClick={createSource}
+            >
+              Guardar fuente
+            </Button>
+          </div>
+        </div>
+
+        {sourcesSWR.error ? (
+          <div className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {String(sourcesSWR.error?.message ?? "Error")}
+          </div>
+        ) : sourcesSWR.isLoading ? (
+          <div className="mt-4 text-sm text-zinc-600">Cargando…</div>
+        ) : sources.length === 0 ? (
+          <div className="mt-4 text-sm text-zinc-600">Todavía no hay fuentes.</div>
+        ) : (
+          <div className="mt-4 space-y-3">
+            {sources.map((s) => (
+              <div key={s.id} className="rounded-md border border-zinc-200 bg-white p-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-medium text-zinc-900">{s.name}</div>
+                    <div className="mt-1 truncate text-xs text-zinc-600">{s.url}</div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <label className="flex items-center gap-2 text-sm text-zinc-700">
+                      <input
+                        type="checkbox"
+                        checked={s.is_active}
+                        disabled={pending}
+                        onChange={(e) => updateSource(s.id, { is_active: e.target.checked })}
+                      />
+                      Activa
+                    </label>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="destructive"
+                      disabled={pending}
+                      onClick={() => deleteSource(s.id, s.name)}
+                    >
+                      Eliminar
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="mt-3 grid gap-2 md:grid-cols-2">
+                  <input
+                    defaultValue={s.list_container_selector}
+                    onBlur={(e) =>
+                      updateSource(s.id, { list_container_selector: e.target.value.trim() })
+                    }
+                    placeholder="Selector lista"
+                    className="h-10 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-900"
+                  />
+                  <input
+                    defaultValue={s.link_selector}
+                    onBlur={(e) => updateSource(s.id, { link_selector: e.target.value.trim() })}
+                    placeholder="Selector link"
+                    className="h-10 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-900"
+                  />
+                  <input
+                    defaultValue={s.content_selector}
+                    onBlur={(e) => updateSource(s.id, { content_selector: e.target.value.trim() })}
+                    placeholder="Selector contenido"
+                    className="h-10 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-900"
+                  />
+                  <input
+                    defaultValue={s.ignore_selector ?? ""}
+                    onBlur={(e) =>
+                      updateSource(s.id, { ignore_selector: e.target.value.trim() || null })
+                    }
+                    placeholder="Selector ignorar (opcional)"
+                    className="h-10 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-900"
+                  />
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>

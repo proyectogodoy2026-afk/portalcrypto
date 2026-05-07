@@ -192,6 +192,9 @@ export default function PostEditor({
   const [localImagePreviewUrl, setLocalImagePreviewUrl] = React.useState<string | null>(null);
   const [content, setContent] = React.useState("");
   const [uploadingImage, setUploadingImage] = React.useState(false);
+  const [imageCheck, setImageCheck] = React.useState<
+    { status: "idle" | "checking" | "ok" | "blocked"; reason?: string }
+  >({ status: "idle" });
 
   const [whatHappened, setWhatHappened] = React.useState("");
   const [whyItMatters, setWhyItMatters] = React.useState("");
@@ -231,6 +234,7 @@ export default function PostEditor({
     setEmbedUrl("");
     setImageUrl("");
     setUrl("");
+    setImageCheck({ status: "idle" });
 
     const cleanedName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
     const id = typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : String(Date.now());
@@ -262,6 +266,31 @@ export default function PostEditor({
     }
     setImageUrl(publicUrl);
     setUrl(publicUrl);
+
+    setImageCheck({ status: "checking" });
+    try {
+      const res = await fetch("/api/moderation/image-check", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ imageUrl: publicUrl }),
+      });
+      const result = (await res.json().catch(() => null)) as { allow?: boolean; reason?: string } | null;
+      if (!result?.allow) {
+        const reason = result?.reason?.trim() ? result.reason.trim() : "Contenido no permitido.";
+        setImageCheck({ status: "blocked", reason });
+        setError(`Imagen bloqueada: ${reason}`);
+        setImageUrl("");
+        setUrl("");
+        return;
+      }
+      setImageCheck({ status: "ok" });
+    } catch {
+      setImageCheck({ status: "blocked", reason: "No pudimos verificar la imagen." });
+      setError("No pudimos verificar la imagen. Intentá de nuevo.");
+      setImageUrl("");
+      setUrl("");
+      return;
+    }
   }
 
   const topCommunities = React.useMemo(
@@ -291,6 +320,14 @@ export default function PostEditor({
     setError(null);
 
     if (loading) return;
+    if (imageCheck.status === "checking") {
+      setError("Estamos verificando la imagen. Esperá un momento.");
+      return;
+    }
+    if (imageCheck.status === "blocked") {
+      setError(imageCheck.reason?.trim() ? `Imagen bloqueada: ${imageCheck.reason}` : "Imagen bloqueada.");
+      return;
+    }
 
     const base = { title: title.trim(), community_id: communityId };
     const parsed =
@@ -506,6 +543,7 @@ export default function PostEditor({
                         if (localImagePreviewUrl) URL.revokeObjectURL(localImagePreviewUrl);
                         setLocalImagePreviewUrl(null);
                         setImageUrl("");
+                        setImageCheck({ status: "idle" });
                         if (url === imageUrl) setUrl("");
                       }}
                     >
@@ -523,6 +561,12 @@ export default function PostEditor({
                         referrerPolicy="no-referrer"
                       />
                     </div>
+                  ) : null}
+
+                  {imageCheck.status === "checking" ? (
+                    <div className="text-xs text-zinc-600">Verificando imagen…</div>
+                  ) : imageCheck.status === "ok" ? (
+                    <div className="text-xs text-emerald-700">Imagen verificada.</div>
                   ) : null}
                 </div>
 
@@ -543,6 +587,7 @@ export default function PostEditor({
                           if (localImagePreviewUrl) URL.revokeObjectURL(localImagePreviewUrl);
                           setLocalImagePreviewUrl(null);
                           setImageUrl("");
+                          setImageCheck({ status: "idle" });
                         }
                       }}
                       placeholder={type === "link" ? "https://..." : "Pegá un link de YouTube o X (Twitter)"}

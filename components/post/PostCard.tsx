@@ -278,7 +278,9 @@ export default function PostCard({
             </div>
             <span>·</span>
             {community ? (
-              <span className="font-medium text-zinc-700">{community.name}</span>
+              <span className="font-medium text-zinc-700">
+                {community.name ?? `/c/${community.slug}`}
+              </span>
             ) : (
               <span className="font-medium text-zinc-700">Comunidad</span>
             )}
