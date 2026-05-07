@@ -9,6 +9,7 @@ const patchSchema = z.object({
   link_selector: z.string().trim().min(1).max(200).optional(),
   content_selector: z.string().trim().min(1).max(200).optional(),
   ignore_selector: z.string().trim().max(200).nullable().optional(),
+  default_community_id: z.string().trim().min(1).nullable().optional(),
   is_active: z.boolean().optional(),
 });
 
@@ -74,4 +75,3 @@ export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string 
   if (error) return Response.json({ message: "No pudimos eliminar la fuente." }, { status: 500 });
   return Response.json({ ok: true }, { status: 200 });
 }
-

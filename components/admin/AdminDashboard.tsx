@@ -34,6 +34,7 @@ type ScrapeSource = {
   id: string;
   name: string;
   url: string;
+  default_community_id?: string | null;
   list_container_selector: string;
   link_selector: string;
   content_selector: string;
@@ -65,12 +66,17 @@ export default function AdminDashboard({ superEmail }: { superEmail: string }) {
   const [sourceDraft, setSourceDraft] = React.useState({
     name: "",
     url: "",
+    default_community_id: "",
     list_container_selector: "",
     link_selector: "",
     content_selector: "",
     ignore_selector: "",
     is_active: true,
   });
+  const [testBySourceId, setTestBySourceId] = React.useState<
+    Record<string, { loading: boolean; items?: Array<{ url: string; title: string; contentSnippet: string }>; error?: string }>
+  >({});
+  const [importBySourceId, setImportBySourceId] = React.useState<Record<string, boolean>>({});
   const [pending, startTransition] = React.useTransition();
   const [actionError, setActionError] = React.useState<string | null>(null);
 
@@ -120,6 +126,11 @@ export default function AdminDashboard({ superEmail }: { superEmail: string }) {
   const sources = React.useMemo(
     () => sourcesSWR.data?.sources ?? [],
     [sourcesSWR.data?.sources],
+  );
+
+  const approvedCommunities = React.useMemo(
+    () => communities.filter((c) => (c.status ?? "approved") === "approved"),
+    [communities],
   );
 
   function setAdminRole(userId: string, value: boolean) {
@@ -200,6 +211,7 @@ export default function AdminDashboard({ superEmail }: { superEmail: string }) {
         const payload = {
           name: sourceDraft.name.trim(),
           url: sourceDraft.url.trim(),
+          default_community_id: sourceDraft.default_community_id.trim() || null,
           list_container_selector: sourceDraft.list_container_selector.trim(),
           link_selector: sourceDraft.link_selector.trim(),
           content_selector: sourceDraft.content_selector.trim(),
@@ -219,6 +231,7 @@ export default function AdminDashboard({ superEmail }: { superEmail: string }) {
         setSourceDraft({
           name: "",
           url: "",
+          default_community_id: "",
           list_container_selector: "",
           link_selector: "",
           content_selector: "",
@@ -267,6 +280,56 @@ export default function AdminDashboard({ superEmail }: { superEmail: string }) {
       })();
     });
   }
+
+  function testSource(sourceId: string) {
+    setTestBySourceId((prev) => ({ ...prev, [sourceId]: { loading: true } }));
+    startTransition(() => {
+      void (async () => {
+        const res = await fetch("/api/admin/scrape-sources/test", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ sourceId, limit: 3 }),
+        });
+        const data = await res.json().catch(() => null);
+        if (!res.ok) {
+          setTestBySourceId((prev) => ({
+            ...prev,
+            [sourceId]: { loading: false, error: data?.message ?? "No pudimos probar la fuente." },
+          }));
+          return;
+        }
+        const items =
+          (data?.items ?? []) as Array<{ url: string; title: string; contentSnippet: string }>;
+        setTestBySourceId((prev) => ({ ...prev, [sourceId]: { loading: false, items } }));
+      })();
+    });
+  }
+
+  function importSource(sourceId: string) {
+    setImportBySourceId((prev) => ({ ...prev, [sourceId]: true }));
+    startTransition(() => {
+      void (async () => {
+        const res = await fetch("/api/admin/scrape-sources/import", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ sourceId, limit: 10 }),
+        });
+        const data = await res.json().catch(() => null);
+        setImportBySourceId((prev) => ({ ...prev, [sourceId]: false }));
+        if (!res.ok) {
+          setActionError(data?.message ?? "No pudimos importar.");
+          return;
+        }
+        await sourcesSWR.mutate();
+        await scrapedSWR.mutate();
+      })();
+    });
+  }
+
+  const scrapedSWR = useSWR<{ items: Array<Record<string, unknown>> }>(
+    "/api/admin/scraped-posts?status=pending",
+    fetchJson,
+  );
 
   return (
     <div className="space-y-8">
@@ -370,6 +433,18 @@ export default function AdminDashboard({ superEmail }: { superEmail: string }) {
             placeholder="URL (https://...)"
             className="h-10 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-900"
           />
+          <select
+            value={sourceDraft.default_community_id}
+            onChange={(e) => setSourceDraft((p) => ({ ...p, default_community_id: e.target.value }))}
+            className="h-10 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-900"
+          >
+            <option value="">Comunidad destino (opcional)</option>
+            {approvedCommunities.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
           <input
             value={sourceDraft.list_container_selector}
             onChange={(e) => setSourceDraft((p) => ({ ...p, list_container_selector: e.target.value }))}
@@ -438,6 +513,23 @@ export default function AdminDashboard({ superEmail }: { superEmail: string }) {
                     <div className="mt-1 truncate text-xs text-zinc-600">{s.url}</div>
                   </div>
                   <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={pending || testBySourceId[s.id]?.loading}
+                      onClick={() => testSource(s.id)}
+                    >
+                      {testBySourceId[s.id]?.loading ? "Probando…" : "Probar fuente"}
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={pending || importBySourceId[s.id] === true}
+                      onClick={() => importSource(s.id)}
+                    >
+                      {importBySourceId[s.id] === true ? "Importando…" : "Importar"}
+                    </Button>
                     <label className="flex items-center gap-2 text-sm text-zinc-700">
                       <input
                         type="checkbox"
@@ -488,9 +580,167 @@ export default function AdminDashboard({ superEmail }: { superEmail: string }) {
                     placeholder="Selector ignorar (opcional)"
                     className="h-10 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-900"
                   />
+                  <select
+                    defaultValue={s.default_community_id ?? ""}
+                    onChange={(e) =>
+                      updateSource(s.id, { default_community_id: e.target.value.trim() || null })
+                    }
+                    className="h-10 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-900"
+                  >
+                    <option value="">Comunidad destino (opcional)</option>
+                    {approvedCommunities.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
+
+                {testBySourceId[s.id]?.error ? (
+                  <div className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                    {testBySourceId[s.id]?.error}
+                  </div>
+                ) : (testBySourceId[s.id]?.items ?? []).length > 0 ? (
+                  <div className="mt-3 space-y-2 rounded-md border border-zinc-200 bg-zinc-50 p-3">
+                    <div className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+                      Preview
+                    </div>
+                    {(testBySourceId[s.id]?.items ?? []).map((it) => (
+                      <div key={it.url} className="rounded-md bg-white px-3 py-2">
+                        <div className="truncate text-sm font-medium text-zinc-900">{it.title}</div>
+                        <div className="mt-1 truncate text-xs text-zinc-600">{it.url}</div>
+                        {it.contentSnippet?.trim() ? (
+                          <div className="mt-2 text-sm text-zinc-800">{it.contentSnippet}</div>
+                        ) : (
+                          <div className="mt-2 text-sm text-zinc-600">
+                            No se pudo extraer contenido con el selector configurado.
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
               </div>
             ))}
+          </div>
+        )}
+      </div>
+
+      <div className="rounded-lg border border-zinc-200 bg-white p-4">
+        <div>
+          <div className="text-sm font-semibold text-zinc-900">Scrapping · Cola</div>
+          <div className="mt-1 text-xs text-zinc-600">
+            Items recepcionados. Solo se publican cuando los aprobás.
+          </div>
+        </div>
+
+        {scrapedSWR.error ? (
+          <div className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {String(scrapedSWR.error?.message ?? "Error")}
+          </div>
+        ) : scrapedSWR.isLoading ? (
+          <div className="mt-4 text-sm text-zinc-600">Cargando…</div>
+        ) : (scrapedSWR.data?.items ?? []).length === 0 ? (
+          <div className="mt-4 text-sm text-zinc-600">No hay items pendientes.</div>
+        ) : (
+          <div className="mt-4 space-y-3">
+            {(scrapedSWR.data?.items ?? []).map((raw) => {
+              const r = raw as unknown as {
+                id: string;
+                url: string;
+                title: string | null;
+                content_text: string | null;
+                source_name?: string | null;
+                default_community_id?: string | null;
+              };
+              return (
+                <div key={r.id} className="rounded-md border border-zinc-200 bg-white p-3">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-medium text-zinc-900">
+                        {r.title?.trim() ? r.title : "Sin título"}
+                      </div>
+                      <div className="mt-1 truncate text-xs text-zinc-600">
+                        {(r.source_name ?? "Fuente").toString()} · {r.url}
+                      </div>
+                      {r.content_text?.trim() ? (
+                        <div className="mt-2 text-sm text-zinc-800">
+                          {r.content_text.length > 280 ? `${r.content_text.slice(0, 280)}…` : r.content_text}
+                        </div>
+                      ) : (
+                        <div className="mt-2 text-sm text-zinc-600">Sin contenido extraído.</div>
+                      )}
+                    </div>
+
+                    <div className="flex flex-col items-end gap-2">
+                      <select
+                        defaultValue={r.default_community_id ?? ""}
+                        className="h-9 w-56 rounded-md border border-zinc-200 bg-white px-2 text-sm text-zinc-900"
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setReviewNotes((prev) => ({ ...prev, [`community:${r.id}`]: v }));
+                        }}
+                      >
+                        <option value="">Elegí comunidad</option>
+                        {approvedCommunities.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          disabled={pending}
+                          onClick={() => {
+                            const picked = (reviewNotes[`community:${r.id}`] ?? "").trim() || (r.default_community_id ?? "");
+                            startTransition(() => {
+                              void (async () => {
+                                const res = await fetch("/api/admin/scraped-posts/review", {
+                                  method: "POST",
+                                  headers: { "content-type": "application/json" },
+                                  body: JSON.stringify({
+                                    id: r.id,
+                                    action: "approve",
+                                    communityId: picked || undefined,
+                                  }),
+                                });
+                                if (!res.ok) return;
+                                await scrapedSWR.mutate();
+                              })();
+                            });
+                          }}
+                        >
+                          Aprobar
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          disabled={pending}
+                          onClick={() => {
+                            startTransition(() => {
+                              void (async () => {
+                                const res = await fetch("/api/admin/scraped-posts/review", {
+                                  method: "POST",
+                                  headers: { "content-type": "application/json" },
+                                  body: JSON.stringify({ id: r.id, action: "reject" }),
+                                });
+                                if (!res.ok) return;
+                                await scrapedSWR.mutate();
+                              })();
+                            });
+                          }}
+                        >
+                          Rechazar
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

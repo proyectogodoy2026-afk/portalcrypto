@@ -44,7 +44,13 @@ export async function GET(req: Request) {
 
   if (error) return Response.json({ message: "No pudimos cargar la cola." }, { status: 500 });
 
-  const sourceIds = Array.from(new Set((data ?? []).map((r) => (r as any).source_id).filter(Boolean))) as string[];
+  const sourceIds = Array.from(
+    new Set(
+      (data ?? [])
+        .map((r) => (r as unknown as { source_id?: unknown } | null)?.source_id)
+        .filter((v): v is string => typeof v === "string" && Boolean(v)),
+    ),
+  );
   const { data: sources } =
     sourceIds.length > 0
       ? await admin.from("scrape_sources").select("id,name,default_community_id").in("id", sourceIds).limit(5000)
@@ -58,9 +64,12 @@ export async function GET(req: Request) {
   const items = (data ?? []).map((r) => {
     const row = r as unknown as { source_id: string };
     const src = map.get(row.source_id) ?? null;
-    return { ...(r as Record<string, unknown>), source_name: src?.name ?? "Fuente", default_community_id: src?.default_community_id ?? null };
+    return {
+      ...(r as Record<string, unknown>),
+      source_name: src?.name ?? "Fuente",
+      default_community_id: src?.default_community_id ?? null,
+    };
   });
 
   return Response.json({ items }, { status: 200 });
 }
-

@@ -7,6 +7,7 @@ const SUPER_ADMIN_EMAIL = "s.godoy.rubio@gmail.com";
 const createSchema = z.object({
   name: z.string().trim().min(1).max(80),
   url: z.string().trim().url(),
+  default_community_id: z.string().trim().min(1).nullable().optional(),
   list_container_selector: z.string().trim().min(1).max(200),
   link_selector: z.string().trim().min(1).max(200),
   content_selector: z.string().trim().min(1).max(200),
@@ -45,7 +46,7 @@ export async function GET() {
   const { data, error } = await admin
     .from("scrape_sources")
     .select(
-      "id,name,url,list_container_selector,link_selector,content_selector,ignore_selector,is_active,created_at",
+      "id,name,url,default_community_id,list_container_selector,link_selector,content_selector,ignore_selector,is_active,created_at",
     )
     .order("created_at", { ascending: false, nullsFirst: false })
     .limit(5000);
@@ -74,6 +75,7 @@ export async function POST(req: Request) {
   const { error } = await admin.from("scrape_sources").insert({
     name: parsed.data.name,
     url: parsed.data.url,
+    default_community_id: parsed.data.default_community_id ?? null,
     list_container_selector: parsed.data.list_container_selector,
     link_selector: parsed.data.link_selector,
     content_selector: parsed.data.content_selector,
@@ -84,4 +86,3 @@ export async function POST(req: Request) {
   if (error) return Response.json({ message: "No pudimos guardar la fuente." }, { status: 500 });
   return Response.json({ ok: true }, { status: 200 });
 }
-
